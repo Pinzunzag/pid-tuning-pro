@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PID Tuning Pro v2.24.8 — WGT</title>
+<style>
+  :root{--bg:#1a1a1a;--panel:#252525;--line:#3a3a3a;--txt:#e6e6e6;--muted:#9aa0a6;--accent:#4fc3f7;--pv:#7CFC00;--sp:#ff5252;--op:#42a5f5;--warn:#ffb300;--ok:#66bb6a;--bad:#ef5350;--dist:#ff9800;--prev:#7986cb;--capture:#e91e63}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Consolas,'Segoe UI',monospace;background:var(--bg);color:var(--txt);font-size:13px;overflow:hidden}
+  header{background:#0d0d0d;padding:6px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  header h1{margin:0;font-size:15px;letter-spacing:1px;color:var(--accent)}
+  header .brand{color:#ffb300;font-weight:bold;font-size:11px;letter-spacing:2px}
+  .wf{display:flex;gap:4px;background:#111;padding:4px 14px;border-bottom:1px solid var(--line);font-size:10.5px;align-items:center;flex-wrap:wrap}
+  body.guided .dimmable{opacity:.18;pointer-events:none;transition:opacity .3s}
+  body.guided .always-visible,body.guided .always-visible *{opacity:1 !important;pointer-events:auto !important}
+  body.guided .plots4,body.guided .plots4 *,body.guided .snap,body.guided .snap *{opacity:1 !important;pointer-events:auto !important}
+  body.guided .wf-target{opacity:1 !important;pointer-events:auto !important;outline:2px solid var(--warn);outline-offset:3px;border-radius:5px;animation:guide-pulse 1.5s ease-in-out infinite}
+  body.guided .wf-target-secondary{opacity:1 !important;pointer-events:auto !important;outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;animation:guide-pulse-blue 2s ease-in-out infinite}
+  body.guided .wf-target-soft{opacity:1 !important;pointer-events:auto !important;outline:1px dashed var(--accent);outline-offset:2px;border-radius:4px}
+  @keyframes guide-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,179,0,.7)}50%{box-shadow:0 0 0 10px rgba(255,179,0,0)}}
+  @keyframes guide-pulse-blue{0%,100%{box-shadow:0 0 0 0 rgba(79,195,247,.6)}50%{box-shadow:0 0 0 8px rgba(79,195,247,0)}}
+  .exit-guided{background:#7a1f1f;border-color:#ef5350;color:#fff;padding:3px 10px;border-radius:12px;cursor:pointer;font-size:10.5px;margin-left:6px;border:1px solid #ef5350;font-family:inherit}
+  .wf-step{padding:4px 12px;border:1px solid var(--line);border-radius:14px;color:var(--muted);cursor:pointer;position:relative;transition:all .25s;font-weight:500}
+  .wf-step:hover{background:#1a2a3a;color:#fff;border-color:#3a5a7a}
+  .wf-step.active{background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff;border-color:#42a5f5;box-shadow:0 0 8px rgba(66,165,245,.5);font-weight:bold}
+  .wf-step.done{border-color:var(--ok);color:var(--ok)}
+  .wf-step.done::before{content:'✓ ';color:var(--ok)}
+  .wf-step .wf-tip{position:absolute;top:110%;left:50%;transform:translateX(-50%);background:#1e1e1e;border:1px solid var(--accent);color:#e6e6e6;padding:8px 12px;font-size:11px;border-radius:5px;width:340px;max-width:360px;white-space:normal;z-index:150;box-shadow:0 4px 12px rgba(0,0,0,.6);pointer-events:none;opacity:0;transition:opacity .2s;line-height:1.5;font-weight:normal}
+  .wf-step .wf-tip b{color:var(--accent);display:block;margin-bottom:3px;font-size:12px}
+  .wf-step .wf-tip .wf-actions{color:#ffd54f;font-style:italic;font-size:10.5px;margin-top:4px;padding-top:4px;border-top:1px dashed #444}
+  .wf-step:hover .wf-tip{opacity:1}
+  .wf-help{margin-left:auto;color:#ffd54f;font-size:11px;font-style:italic}
+  .wrap{display:grid;grid-template-columns:300px 1fr 460px;gap:6px;padding:6px;height:calc(100vh - 76px)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px;overflow:auto}
+  .panel h2{font-size:11.5px;margin:0 0 6px;letter-spacing:1px;color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:3px;text-transform:uppercase}
+  .row{display:flex;align-items:center;justify-content:space-between;margin:3px 0;gap:6px}
+  .row label{color:var(--muted);font-size:11px;position:relative;cursor:help}
+  .row input[type=number]{width:78px;background:#111;color:var(--txt);border:1px solid var(--line);padding:2px 5px;font-family:inherit;text-align:right;border-radius:2px}
+  .row input[type=number]:disabled{background:#0a0a0a;color:#666;cursor:not-allowed}
+  .row select{background:#111;color:var(--txt);border:1px solid var(--line);padding:2px 4px;font-family:inherit;font-size:11px;border-radius:2px}
+  .row .u{font-size:9.5px;color:#8ec5ff;margin-left:4px;font-weight:bold}
+  button{background:#3a3a3a;color:var(--txt);border:1px solid var(--line);padding:5px 7px;cursor:pointer;font-family:inherit;font-size:11px;border-radius:2px}
+  button:hover:not(:disabled){background:#4a4a4a}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:#1565c0;border-color:#1976d2}
+  button.warn{background:#b27300;border-color:#ffb300}
+  button.ok{background:#2e7d32;border-color:#43a047}
+  button.bad{background:#7a1f1f;border-color:#ef5350}
+  button.tiny{padding:3px 6px;font-size:10px}
+  button.magic{background:linear-gradient(135deg,#7b1fa2,#4a148c);border:1px solid #ab47bc;color:#fff;font-weight:bold}
+  button.capture{background:linear-gradient(135deg,#c2185b,#e91e63);border:1px solid #e91e63;color:#fff;font-weight:bold}
+  button.capture.active{background:linear-gradient(135deg,#7a1f1f,#c62828);border-color:#ef5350;animation:capture-pulse 1.5s ease-in-out infinite}
+  @keyframes capture-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,83,80,.7)}50%{box-shadow:0 0 0 10px rgba(239,83,80,0)}}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:5px}
+  .btnrow.single{grid-template-columns:1fr}
+  .group{border-radius:4px;padding:2px}
+  hr{border:none;border-top:1px solid var(--line);margin:7px 0}
+  .faceplate{background:linear-gradient(180deg,#2e2e2e,#252525);border:2px solid #555;border-radius:6px;padding:8px;margin-bottom:6px}
+  .fp-title{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #555;padding-bottom:3px;margin-bottom:6px}
+  .fp-title input.tag{background:#111;border:1px solid #444;color:#fff;font-weight:bold;letter-spacing:2px;font-size:13px;padding:2px 6px;border-radius:2px;width:110px}
+  .fp-mode{padding:2px 8px;border-radius:3px;font-size:10px;font-weight:bold;transition:all .3s}
+  .fp-mode.auto{background:#1b5e20;color:#a5d6a7}
+  .fp-mode.man{background:#e65100;color:#ffe0b2}
+  .fp-desc{font-size:10px;color:#8bd18b;text-align:center;margin-bottom:4px;font-style:italic}
+  .fp-vals{display:grid;grid-template-columns:45px 1fr 50px;gap:4px;align-items:center;margin:4px 0}
+  .fp-vals .lbl{color:var(--muted);font-weight:bold;font-size:11px}
+  .fp-vals .val{font-size:16px;text-align:right;padding:2px 6px;border-radius:2px;background:#111}
+  .fp-vals .unit{color:#8ec5ff;font-size:10px;font-weight:bold}
+  .pv-val{color:var(--pv)}.sp-val{color:var(--sp)}.op-val{color:var(--op)}
+  .bar{height:8px;background:#111;border:1px solid #444;border-radius:2px;overflow:hidden;margin-top:2px}
+  .bar>div{height:100%;background:linear-gradient(90deg,#0277bd,#42a5f5)}
+  .fp-ctrl{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:5px}
+  .sp-input{display:flex;gap:4px;align-items:center;margin-top:5px}
+  .sp-input label{color:var(--muted);font-size:11px;min-width:24px}
+  .sp-input input{flex:1;background:#111;color:var(--sp);border:1px solid #555;padding:3px 6px;text-align:right;font-size:13px;border-radius:2px}
+  .custom-step-row{display:grid;grid-template-columns:1fr 55px 1fr;gap:3px;margin-top:5px}
+  .custom-step-row input{background:#111;color:var(--warn);border:1px solid var(--line);padding:3px 5px;text-align:center;font-weight:bold}
+  .autotune-wizard{background:#0d1a2d;border:2px solid #1976d2;border-radius:6px;padding:8px;margin:6px 0}
+  .obj-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin:6px 0}
+  .obj-btn{background:#1a2a3a;border:1px solid #444;color:#ccc;padding:6px 4px;text-align:center;cursor:pointer;font-size:11px;font-weight:bold;border-radius:3px}
+  .obj-btn:hover{background:#2a3a4a}
+  .obj-btn.active{background:#1565c0;border-color:#42a5f5;color:#fff;box-shadow:0 0 6px rgba(66,165,245,.5)}
+  .response-slider{margin:8px 0}
+  .response-slider .hdr{display:flex;justify-content:space-between;font-size:10.5px;color:#8ec5ff;margin-bottom:2px;font-weight:bold}
+  .response-slider input[type=range]{width:100%;accent-color:var(--accent)}
+  .response-slider .ends{display:flex;justify-content:space-between;font-size:9.5px;color:#8ec5ff;margin-top:-2px}
+  .obj-explain{background:#0a1a2a;border-left:3px solid var(--accent);padding:5px 8px;font-size:10px;color:#ade;margin:5px 0;font-style:italic;line-height:1.5;min-height:36px}
+  .predict-panel{background:#0a1a0a;border:1px solid #2e7d32;border-radius:4px;padding:6px;margin:5px 0}
+  .predict-panel h4{margin:0 0 4px;font-size:10.5px;color:var(--ok);letter-spacing:.5px;text-transform:uppercase}
+  .pred-summary{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:5px 0}
+  .pred-cell{background:#111;padding:4px 6px;border-radius:2px;font-size:10.5px;display:flex;justify-content:space-between}
+  .pred-cell .l{color:var(--muted);font-size:10px}
+  .pred-cell .v{font-weight:bold;font-size:11px}
+  .pred-cell.cur .v{color:var(--ok)}
+  .pred-cell.new .v{color:var(--warn)}
+  .pred-warn{background:#3a1a1a;border-left:3px solid var(--bad);padding:4px 8px;font-size:10px;color:#fdd;margin-top:5px;font-style:italic;display:none}
+  .pred-warn.show{display:block}
+  .pred-warn.ok{background:#0d2a0d;border-left-color:var(--ok);color:#cfd;display:block}
+  .robust-bar{background:#111;height:8px;border-radius:2px;overflow:hidden;margin-top:2px}
+  .robust-bar>div{height:100%;transition:width .3s,background .3s}
+  .preview-canvas{background:#050505;border:1px solid #333;border-radius:2px;margin-top:5px;height:100px;position:relative}
+  .preview-canvas canvas{width:100%;height:100%;display:block}
+  .preview-canvas .cap{position:absolute;top:2px;left:6px;font-size:9.5px;color:#8ec5ff;background:rgba(0,0,0,.7);padding:1px 5px;border-radius:2px}
+  .method-badge{background:linear-gradient(135deg,#7b1fa2,#4a148c);border:1px solid #ab47bc;color:#fff;padding:4px 8px;border-radius:3px;margin:5px 0;font-size:11px;font-weight:bold;text-align:center;letter-spacing:.5px}
+  .method-badge .lambda{color:#ffd54f;font-family:Consolas,monospace}
+  .lambda-info{background:#0a0a1a;border:1px solid #2e2e5e;border-radius:3px;padding:4px 8px;margin:4px 0;font-size:10px;color:#8ec5ff;display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .lambda-info b{color:#ffd54f}
+  .autotest-progress{background:#111;border:1px solid #444;border-radius:3px;padding:6px;margin-top:5px;font-size:11px;transition:opacity .5s}
+  .autotest-progress .step{color:var(--muted);margin:2px 0}
+  .tune-table{border:1px solid #444;border-radius:3px;margin:5px 0;background:#0d0d0d}
+  .tune-table .header{display:grid;grid-template-columns:50px 1fr 1fr 1fr;background:#222;padding:4px 4px;font-size:9.5px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #444}
+  .tune-table .header .col-prev{color:var(--prev);text-align:center}
+  .tune-table .header .col-active{color:var(--ok);text-align:center}
+  .tune-table .header .col-proposed{color:var(--warn);text-align:center}
+  .tune-row{display:grid;grid-template-columns:50px 1fr 1fr 1fr;padding:3px 4px;align-items:center;border-bottom:1px solid #1a1a1a}
+  .tune-row label{color:var(--muted);font-weight:bold;font-size:11px;cursor:help}
+  .tune-row label .u{font-size:9px;color:#8ec5ff;margin-left:3px}
+  .tune-row .val-prev{background:#0d0f1a;border:1px dashed var(--prev);color:var(--prev);padding:3px 4px;text-align:right;font-weight:bold;width:100%;margin:0 2px;font-size:11px}
+  .tune-row .val-prev.empty{color:#444}
+  .tune-row .val-active{background:#0a1a0a;border:1px solid #2e7d32;color:var(--ok);padding:3px 4px;text-align:right;font-weight:bold;width:100%;margin:0 2px;font-size:11px}
+  .tune-row .val-active:disabled{background:#0a1a0a;color:var(--ok);opacity:1}
+  .tune-row .val-proposed{background:#1a1400;border:1px solid #b27300;color:var(--warn);padding:3px 4px;text-align:right;font-weight:bold;width:100%;margin:0 2px;font-size:11px}
+  .tune-row .val-proposed.empty{color:#555;background:#111;border-color:#333}
+  .algo-info{background:#0d1a2d;border-left:3px solid var(--accent);padding:4px 8px;font-size:10px;color:#ade;margin:5px 0;font-style:italic}
+  .algo-info b{color:#8ec5ff;font-style:normal}
+  .proposed-source{background:#1a1400;border-left:3px solid var(--warn);padding:3px 8px;font-size:10px;color:#ffe082;margin:5px 0;font-style:italic;display:none}
+  .proposed-source.show{display:block}
+  .no-proposal-hint{background:#0d1a2d;border-left:3px solid var(--accent);padding:4px 8px;font-size:10px;color:#8ec5ff;margin:5px 0;font-style:italic}
+  .locked-info{background:#0a1a0a;border-left:3px solid var(--ok);padding:4px 8px;font-size:10px;color:#a5d6a7;margin:5px 0;font-style:italic}
+  .param-tip{position:fixed;background:#1e1e1e;border:1px solid var(--accent);color:#e6e6e6;padding:6px 10px;font-size:11px;border-radius:4px;z-index:300;max-width:280px;line-height:1.5;pointer-events:none;display:none}
+  .param-tip.show{display:block}
+  .param-tip b{color:var(--accent)}
+  .param-tip .formula{background:#0a0a0a;border-left:3px solid var(--warn);padding:3px 6px;margin-top:4px;font-size:10.5px;color:#fff;font-family:Consolas,monospace}
+  .chart-wrap{display:flex;flex-direction:column;height:100%}
+  canvas{background:#0a0a0a;border:1px solid var(--line);border-radius:3px;width:100%}
+  .plots4{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;flex:1;min-height:0;margin-top:4px}
+  .mini{position:relative;background:#0a0a0a;border:1px solid var(--line);border-radius:3px;overflow:hidden;min-height:210px;display:flex;flex-direction:column}
+  .mini canvas{flex:1 1 auto;min-height:100px;width:100%;display:block;border:none;cursor:crosshair}
+  .mini .mtitle{position:absolute;top:3px;left:6px;font-size:10.5px;color:#ccc;z-index:2;background:rgba(10,10,10,.75);padding:1px 6px;border-radius:2px;font-weight:bold}
+  .mini .mtitle .mdesc{color:#8bd18b;font-weight:normal;font-style:italic;font-size:9.5px;margin-left:6px}
+  .stats-bar{background:#0d0d0d;border-top:1px solid #1a1a1a;padding:3px 5px;font-size:9px;color:#ccc;display:flex;flex-direction:column;gap:2px;flex-shrink:0;max-height:90px;overflow-y:auto}
+  .stats-row{display:grid;grid-template-columns:44px repeat(5,1fr);gap:4px;align-items:center}
+  .stats-row .series-name{font-weight:bold;font-size:9.5px;text-align:right;padding-right:4px}
+  .stats-row span{text-align:center}
+  .stats-row .val{color:#8ec5ff;font-weight:bold;font-size:10px}
+  .stats-header{display:grid;grid-template-columns:44px repeat(5,1fr);gap:4px;padding-bottom:1px;border-bottom:1px solid #222}
+  .stats-header .lbl{color:var(--muted);font-size:7.5px;text-transform:uppercase;text-align:center}
+  .plot-tooltip{position:absolute;background:rgba(20,20,20,.95);border:1px solid #4fc3f7;color:#fff;padding:5px 8px;font-size:11px;border-radius:3px;pointer-events:none;z-index:20;display:none}
+  .snap{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;padding:4px 5px;background:#0d0d0d;border-bottom:1px solid var(--line);font-size:10px}
+  .snap .cell{background:#111;border:1px solid var(--line);border-radius:2px;padding:3px 5px;text-align:center}
+  .snap .cell .k{color:var(--muted);font-size:9px;display:block}
+  .snap .cell .v{font-weight:bold;font-size:12px}
+  .snap .cell.ok{border-left:3px solid var(--ok)}
+  .snap .cell.warn{border-left:3px solid var(--warn)}
+  .snap .cell.bad{border-left:3px solid var(--bad)}
+  .snap .cell.idle{border-left:3px solid #555}
+  details{margin:5px 0;background:#1e1e1e;border:1px solid var(--line);border-radius:3px}
+  details summary{cursor:pointer;padding:5px 8px;font-weight:bold;color:var(--accent);font-size:11.5px}
+  details[open] summary{border-bottom:1px solid var(--line)}
+  details .content{padding:7px;font-size:11px;line-height:1.5;color:#ddd}
+  details .content table{width:100%;border-collapse:collapse;margin:5px 0}
+  details .content th,details .content td{border:1px solid #444;padding:2px 4px;text-align:center;font-size:10.5px}
+  details .content th{background:#333;color:var(--accent)}
+  details .content h4{margin:6px 0 3px;color:var(--accent);font-size:11px;text-transform:uppercase}
+  details .content ul{margin:3px 0 3px 16px;padding:0}
+  .formula{background:#0a0a0a;border-left:3px solid var(--warn);padding:3px 6px;margin:3px 0;font-size:11px;color:#fff}
+  .warn-box{background:#2a1a1a;border-left:3px solid var(--bad);padding:3px 6px;margin:5px 0;font-size:10.5px;color:#fdd}
+  .dist-panel{border:1px solid #444;border-radius:3px;padding:4px 6px;margin:3px 0;background:#0a0a0a}
+  .dist-preview{background:#050505;border:1px solid #333;border-radius:2px;margin-top:4px;height:65px;position:relative}
+  .dist-preview canvas{width:100%;height:100%;display:block}
+  .dist-preview .lbl{position:absolute;top:2px;left:4px;font-size:9px;color:var(--dist);z-index:2}
+  .dist-preview .live-badge{position:absolute;top:2px;right:4px;font-size:9px;color:var(--pv);background:rgba(0,0,0,.7);padding:1px 4px;border-radius:2px;z-index:2}
+  .baseop-row{display:flex;align-items:center;gap:3px}
+  .baseop-row input{width:60px !important}
+  .loop-type-highlight{border:2px solid #42a5f5;border-radius:4px;padding:3px;background:rgba(66,165,245,0.05);animation:loop-glow 2s ease-in-out infinite}
+  @keyframes loop-glow{0%,100%{box-shadow:0 0 0 rgba(66,165,245,.3)}50%{box-shadow:0 0 8px rgba(66,165,245,.5)}}
+  .capture-status{background:#2a0d1e;border:1px solid var(--capture);border-radius:3px;padding:4px 8px;margin:5px 0;font-size:10.5px;color:#f8bbd0;display:none}
+  .capture-status.show{display:block}
+  .capture-status b{color:#fff}
+  #confirmModal,#reportModal,#importModal,#autoSeqModal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:250;padding:20px}
+  #confirmModal.show,#reportModal.show,#importModal.show,#autoSeqModal.show{display:flex}
+  #confirmModal .box{background:#252525;border:2px solid var(--warn);border-radius:6px;max-width:520px;width:90vw;padding:20px 24px}
+  #reportModal .box{background:#1e1e1e;border:1px solid #444;border-radius:6px;max-width:1400px;width:98vw;max-height:96vh;overflow:auto;padding:20px 28px}
+  #importModal .box{background:#1e1e1e;border:2px solid var(--accent);border-radius:6px;max-width:600px;width:90vw;padding:20px 24px}
+  #autoSeqModal .box{background:#1e1e1e;border:2px solid var(--accent);border-radius:6px;max-width:900px;width:96vw;max-height:96vh;overflow:auto;padding:20px 28px}
+  #confirmModal h2,#importModal h2{color:var(--warn);margin:0 0 12px;font-size:16px}
+  #importModal h2{color:var(--accent)}
+  #reportModal h1,#autoSeqModal h1{color:var(--accent);margin:0 0 4px;font-size:22px}
+  #reportModal h2,#autoSeqModal h2{color:var(--accent);margin:14px 0 6px;font-size:14px;border-bottom:1px solid #444;padding-bottom:3px}
+  #reportModal table,#autoSeqModal table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 14px}
+  #reportModal th,#reportModal td,#autoSeqModal th,#autoSeqModal td{border:1px solid #444;padding:6px 10px;text-align:center}
+  #reportModal th,#autoSeqModal th{background:#333;color:var(--accent)}
+  #reportModal td.metric{text-align:left;color:var(--muted)}
+  #reportModal td.better{color:var(--ok);font-weight:bold}
+  #reportModal td.worse{color:var(--bad);font-weight:bold}
+  #reportModal .box-plots-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0}
+  #reportModal .box-plot-card{background:#0a0a0a;border:1px solid #333;border-radius:4px;padding:8px}
+  #reportModal .box-plot-card h3{color:#fff;font-size:12px;margin:0 0 6px;text-align:center;text-transform:uppercase;letter-spacing:1px}
+  #reportModal .box-plot-card canvas{width:100%;height:160px;background:#050505;border:1px solid #333;border-radius:3px}
+  #reportModal .verdict{background:#1a2a1a;border-left:4px solid var(--ok);padding:10px 14px;margin:12px 0;font-size:13px;color:#fff;line-height:1.6}
+  #reportModal .verdict.bad{background:#2a1a1a;border-left-color:var(--bad)}
+  #reportModal .verdict.warn{background:#2a2a1a;border-left-color:var(--warn)}
+  #reportModal .history-log{background:#0a0a0a;border:1px solid #333;border-radius:3px;padding:8px;margin:8px 0;max-height:200px;overflow-y:auto;font-family:Consolas,monospace;font-size:10.5px}
+  #reportModal .history-log .entry{padding:3px 5px;border-bottom:1px solid #222;display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:center}
+  #reportModal .history-log .entry .ts{color:#8ec5ff}
+  #reportModal .history-log .entry .desc{color:#ddd}
+  #reportModal .history-log .entry .action{color:var(--warn);font-size:9px;cursor:pointer;padding:2px 6px;background:#333;border-radius:3px}
+  #reportModal .history-log .entry .action:hover{background:#555;color:#fff}
+  #reportModal .btns,#confirmModal .btns,#importModal .btns,#autoSeqModal .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+  #reportModal .no-baseline{background:#2a2a1a;border-left:3px solid var(--warn);padding:10px 14px;font-size:12px;color:#ffe082;margin:10px 0}
+  #importModal .drop-zone{background:#0a0a0a;border:2px dashed #555;border-radius:6px;padding:30px;text-align:center;cursor:pointer}
+  #importModal .drop-zone:hover{border-color:var(--accent);background:#0d1a2d}
+  #importModal .status{background:#0a0a0a;border:1px solid #333;padding:8px;margin-top:10px;font-size:11px}
+  #importModal .status.ok{color:var(--ok);border-color:#2e7d32}
+  #importModal .status.error{color:var(--bad);border-color:#7a1f1f}
+  .verdict-big{padding:20px;border-radius:8px;text-align:center;margin:14px 0;font-size:24px;font-weight:bold;letter-spacing:2px}
+  .verdict-big.good{background:linear-gradient(135deg,#1b5e20,#2e7d32);color:#a5d6a7;border:2px solid var(--ok)}
+  .verdict-big.fair{background:linear-gradient(135deg,#6d4c00,#b27300);color:#ffe0b2;border:2px solid var(--warn)}
+  .verdict-big.poor{background:linear-gradient(135deg,#7a1f1f,#c62828);color:#ffcdd2;border:2px solid var(--bad)}
+  .verdict-big .subtitle{font-size:13px;margin-top:6px;font-weight:normal;letter-spacing:1px}
+  .recommendations{background:#0d1a2d;border-left:3px solid var(--accent);padding:10px 14px;font-size:12px;color:#ade;line-height:1.6}
+  .recommendations ul{margin:5px 0 0 20px;padding:0}
+  .rec-tune-box{background:linear-gradient(135deg,#0d2a0d,#1b3a1b);border:2px solid var(--ok);border-radius:6px;padding:14px 18px;margin:14px 0}
+  .rec-tune-box h3{margin:0 0 8px;color:var(--pv);font-size:14px}
+  .rec-tune-table{width:100%;border-collapse:collapse;margin:8px 0}
+  .rec-tune-table td{border:1px solid #2e7d32;padding:5px 10px;text-align:center;font-size:12px}
+  .rec-tune-table td:first-child{text-align:left;font-weight:bold;color:var(--muted)}
+  .rec-tune-table .old{color:var(--warn)}
+  .rec-tune-table .new{color:var(--pv);font-weight:bold}
+  .rec-tune-table .delta{font-size:10px;color:#8ec5ff}
+  .rec-tune-box .reasoning{background:#050505;border-left:2px solid var(--accent);padding:6px 10px;font-size:10.5px;color:#ade;margin-top:8px;font-style:italic;line-height:1.5}
+  #toast{position:fixed;bottom:16px;right:16px;background:#1b5e20;color:#fff;padding:8px 14px;border-radius:4px;font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
+  #toast.show{opacity:1}
+  #savedList{margin-top:5px;font-size:10.5px;color:var(--muted);max-height:80px;overflow:auto;background:#0a0a0a;border:1px solid #333;border-radius:3px;padding:4px 6px}
+  #tuningCaptureIndicator{position:fixed;bottom:16px;left:16px;background:linear-gradient(135deg,#7b1fa2,#4a148c);color:#fff;padding:8px 14px;border-radius:4px;font-size:11px;opacity:0;transition:opacity .3s;z-index:99;font-weight:bold}
+  #tuningCaptureIndicator.show{opacity:1}
+  #autoSeqIndicator{position:fixed;bottom:60px;left:16px;background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;padding:10px 14px;border-radius:4px;font-size:12px;opacity:0;transition:opacity .3s;z-index:99;font-weight:bold;min-width:280px}
+  #autoSeqIndicator.show{opacity:1}
+  #dataCapIndicator{position:fixed;top:80px;right:16px;background:linear-gradient(135deg,#c2185b,#e91e63);color:#fff;padding:8px 14px;border-radius:4px;font-size:11px;opacity:0;transition:opacity .3s;z-index:99;font-weight:bold}
+  #dataCapIndicator.show{opacity:1}
+  .calc{background:#111;border:1px solid #333;border-radius:3px;padding:6px;margin:5px 0}
+  .calc-title{color:var(--warn);font-weight:bold;font-size:10.5px}
+  .calc-in{display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;margin:5px 0}
+  .calc-in label{color:var(--muted);font-size:10.5px;display:flex;align-items:center;gap:4px}
+  .calc-in input{width:55px;background:#000;color:var(--txt);border:1px solid #444;padding:2px 3px;text-align:right;font-size:10.5px}
+  .calc-out{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;background:#000;padding:5px;margin-bottom:5px}
+  .calc-out div{text-align:center}
+  .calc-out .ol{color:var(--muted);font-size:9.5px;display:block}
+  .calc-out .ov{color:var(--pv);font-size:13px;font-weight:bold}
+  .calc-out .ov.na{color:#555}
+  .calc-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px}
+</style>
+</head>
+<body>
+<div id="paramTip" class="param-tip"></div>
+<header>
+  <div><h1>⚙ PID TUNING PRO <span style="font-size:10px;color:var(--muted)">v2.24.8</span></h1></div>
+  <div class="brand">WOODGROVE APC</div>
+</header>
+<div class="wf">
+  <div class="wf-step active" data-step="1" onclick="gotoStep(1)">1 · Loop Setup<div class="wf-tip"><b>1 · Loop Setup</b>Configure plant model (Kp, τ, θ), loop type preset, actuator dynamics, disturbances.<div class="wf-actions">→ Look at: Plant Process Model + Simulation + Loop Type</div></div></div>
+  <div class="wf-step" data-step="2" onclick="gotoStep(2)">2 · Identify Process<div class="wf-tip"><b>2 · Identify Process</b>Auto Sequence in Identify+Tune or Both mode: moves OP in MAN, fits Kp/τ/θ, computes SIMC. Proposed column filled automatically.<div class="wf-actions">→ Look at: PID Step Test Helper → Mode: Identify + Tune → Run</div></div></div>
+  <div class="wf-step" data-step="4" onclick="gotoStep(4)">3 · Tune<div class="wf-tip"><b>3 · Tune</b>SIMC method. Adjust objective and slider. Review Predicted Response. Apply Proposed.<div class="wf-actions">→ Look at: Process Auto-Tune + PID Parameters</div></div></div>
+  <div class="wf-step" data-step="5" onclick="gotoStep(5)">4 · Verify<div class="wf-tip"><b>4 · Verify</b>Auto Sequence in Verify (AUTO) mode: SP steps, evaluates Overshoot/Rise/Settle/IAE. Verdict + damping-based recommendation.<div class="wf-actions">→ Look at: PID Step Test Helper → Mode: Verify → Run</div></div></div>
+  <div class="wf-step" data-step="6" onclick="gotoStep(6)">5 · Report<div class="wf-tip"><b>5 · Report</b>Generate before/after report with box plots (PV/SP/OP/CV_fb) and tuning history. Export CSV or download HTML.<div class="wf-actions">→ Look at: Save/Import/Export → Generate Report</div></div></div>
+  <button class="exit-guided" id="exitGuidedBtn" onclick="exitGuided()" style="display:none">✕ Exit Guided Mode</button>
+  <span class="wf-help">v2.24.8 — Enhanced Report · Data Capture (FSAPI) · Tuning Guide restored</span>
+</div>
+<div class="wrap">
+<div class="panel">
+  <div class="group" data-wf-target="1" id="plantModelGroup">
+    <h2>Plant Process Model</h2>
+    <div class="row"><label data-tip="procKp">Kp_process</label><input type="number" id="procKp" step="0.1" value="1.0"></div>
+    <div class="row"><label data-tip="procTau">τ <span class="u">(s)</span></label><input type="number" id="procTau" step="1" value="25"></div>
+    <div class="row"><label data-tip="procTheta">θ <span class="u">(s)</span></label><input type="number" id="procTheta" step="1" value="3"></div>
+    <div class="row"><label>Type</label><select id="procType"><option value="fopdt">FOPDT (self-reg)</option><option value="ipdt">Integrating (IPDT)</option></select></div>
+    <div class="row"><label>Noise <span class="u">(% PV)</span></label><input type="number" id="procNoise" step="0.1" value="0.2"></div>
+    <div class="row" style="margin-top:5px"><label>Valve stiction</label><select id="procStiction"><option value="0">None</option><option value="1">Mild</option><option value="2">Moderate</option><option value="3">Severe</option><option value="4">Extreme</option></select></div>
+    <div class="row" style="margin-top:5px"><label>Actuator type</label><select id="actuatorType" onchange="onActuatorTypeChange()"><option value="valve" selected>Valve</option><option value="motor">Motor VFD</option><option value="damper">Damper</option></select></div>
+    <div class="row"><label>Actuator τ <span class="u">(s)</span></label><input type="number" id="actuatorTau" step="0.5" value="3.0"></div>
+    <div class="btnrow"><button onclick="scrambleProcess()" class="warn">🎲 Scramble</button><button onclick="toggleHideProc()" id="hideBtn">👁 Hide</button></div>
+    <div style="margin-top:5px">
+      <label style="color:var(--muted);font-size:11px">Disturbance d(t)</label>
+      <div class="dist-panel">
+        <div class="row"><label>Type</label><select id="distType" onchange="onDistTypeChange()"><option value="none">None</option><option value="constant">Constant</option><option value="sinusoidal" selected>Sinusoidal</option><option value="sawtooth">Sawtooth</option><option value="square">Square</option><option value="random">Random walk</option></select></div>
+        <div class="row"><label>Amplitude</label><input type="number" id="distAmp" step="0.5" value="2"></div>
+        <div class="row" id="distPeriodRow"><label>Period (s)</label><input type="number" id="distPeriod" step="1" value="10"></div>
+        <div class="row"><label>Offset</label><input type="number" id="distOffset" step="0.5" value="0"></div>
+        <div class="dist-preview"><span class="lbl" id="distPreviewLbl">preview</span><span class="live-badge" id="distLiveBadge">LIVE=0</span><canvas id="distPreview"></canvas></div>
+      </div>
+    </div>
+    <div style="margin-top:6px;padding:5px;background:#0a0a0a;border:1px dashed #444;border-radius:3px">
+      <div style="font-size:10.5px;color:var(--muted);margin-bottom:3px">⚡ Pulse disturbance</div>
+      <div class="btnrow single"><button onclick="injectDisturbance()">⚡ Inject Pulse</button></div>
+      <div class="row"><label>Mag (%)</label><input type="number" id="pulseMag" step="1" value="15"></div>
+      <div class="row"><label>Dur (s)</label><input type="number" id="pulseDur" step="1" value="10"></div>
+    </div>
+  </div>
+  <hr>
+  <div class="group always-visible" data-wf-target-secondary="1">
+    <h2>Simulation</h2>
+    <div class="row"><label>dt (s)</label><input type="number" id="dt" step="0.1" value="0.5"></div>
+    <div class="row"><label>Speed x</label><input type="number" id="speed" value="1" min="1" max="50"></div>
+    <div class="row"><label>OP Limits</label><span style="display:flex;gap:3px"><input type="number" id="opMin" value="0" style="width:58px">–<input type="number" id="opMax" value="100" style="width:58px"></span></div>
+    <div class="btnrow"><button onclick="toggleRun()" id="runBtn" class="primary">▶ Run</button><button onclick="resetSim()">↺ Reset</button></div>
+  </div>
+  <hr>
+  <div class="group" data-wf-target="2" data-wf-target-alt="5">
+    <h2>PID Step Test Helper</h2>
+    <div class="row" id="loopTypeRow"><label>Loop type</label><select id="loopType" onchange="applyLoopPreset()"><option value="FIC">FIC — Flow</option><option value="WIC">WIC — Mass Flow</option><option value="LIC" selected>LIC — Level</option><option value="TIC">TIC — Temperature</option><option value="DIC">DIC — Density</option><option value="PIC">PIC — Pressure</option></select></div>
+    <div class="row"><label>Mode</label><select id="autoSeqMode"><option value="verify" selected>Verify (AUTO)</option><option value="identify">Identify + Tune (MAN)</option><option value="both">Both (Identify → Verify)</option></select></div>
+    <div class="row"><label>Base OP</label><span class="baseop-row"><input type="number" id="stBaseOP" value="50.0" step="0.1"><button onclick="syncBaseOP()" class="tiny">🔄</button></span></div>
+    <div class="row"><label>Step Δ%</label><input type="number" id="stStepSize" value="5" step="0.5"></div>
+    <div class="row"><label>Timeout (s/step)</label><input type="number" id="stTimeout" value="300" step="30" min="30"></div>
+    <div class="row"><label>Stability band (%)</label><input type="number" id="stStabBand" value="1.0" step="0.1" min="0.2"></div>
+    <div class="row"><label>Stable time (s)</label><input type="number" id="stStableTime" value="60.0" step="0.5" min="0.5"></div>
+    <div class="btnrow"><button onclick="runAutoSequence()" class="ok" id="autoSeqBtn">🧪 Run Auto Sequence</button><button onclick="stopAutoSequence()" class="bad">■ Stop</button></div>
+    <div style="font-size:9.5px;color:var(--muted);margin-top:4px;font-style:italic">
+      <b style="color:var(--pv)">Verify</b>: closed-loop AUTO with SP steps. Evaluates current tuning.<br>
+      <b style="color:var(--warn)">Identify</b>: open-loop MAN with OP steps. Fits Kp/τ/θ.<br>
+      <b style="color:var(--accent)">Both</b>: Identify + Apply + Verify.
+    </div>
+    <div id="autoSeqProg" style="display:none;background:#0d1a2d;border:1px solid #1976d2;border-radius:3px;padding:6px;margin-top:5px;font-size:11px">
+      <div class="step" id="asp0" style="color:#8ec5ff;font-weight:bold">Auto Sequence Progress:</div>
+      <div id="aspSteps"></div>
+    </div>
+  </div>
+  <hr>
+  <!-- v2.24.8: Save/Import/Export marked always-visible so Report button works in guided mode -->
+  <div class="group always-visible" data-wf-target="6">
+    <h2>Save / Import / Export</h2>
+    <div class="btnrow"><button onclick="saveTune()" class="ok">💾 Save</button><button onclick="loadTune()">📂 Load</button></div>
+    <div class="btnrow"><button onclick="exportCSV()" class="primary">📤 Export</button><button onclick="openImportModal()" class="primary">📥 Import</button></div>
+    <div class="btnrow single"><button onclick="openReport()" class="magic">📑 Report</button></div>
+    <!-- v2.24.8: Data Capture button -->
+    <hr style="margin:6px 0">
+    <div class="btnrow single"><button onclick="toggleDataCapture()" class="capture" id="captureBtn">⏺ Comenzar Captura de Datos</button></div>
+    <div class="capture-status" id="captureStatus"></div>
+    <div style="font-size:9px;color:var(--muted);margin-top:3px;font-style:italic">Captures simulation data, tunings and reports to a folder named TAG_YYYY-MM-DD_HH-MM-SS. Uses File System API in Chrome/Edge, fallback to downloads.</div>
+    <div style="font-size:9.5px;color:var(--muted);margin-top:5px;font-style:italic">Last 5 saved tunes:</div>
+    <div id="savedList"><span style="color:#555;font-style:italic">(none)</span></div>
+  </div>
+</div>
+<div class="panel chart-wrap">
+  <div class="snap">
+    <div class="cell idle" id="k_status"><span class="k">STATUS</span><span class="v">Idle</span></div>
+    <div class="cell idle" id="k_iae"><span class="k">IAE</span><span class="v">0</span></div>
+    <div class="cell idle" id="k_osh"><span class="k">OVERSHOOT</span><span class="v">0 %</span></div>
+    <div class="cell idle" id="k_settle"><span class="k">SETTLE</span><span class="v">— s</span></div>
+    <div class="cell idle" id="k_osc"><span class="k">OSC</span><span class="v">—</span></div>
+    <div class="cell idle" id="k_valve"><span class="k">VALVE</span><span class="v">OK</span></div>
+  </div>
+  <h2 style="margin:6px 0 3px">Live Trends</h2>
+  <div class="plots4">
+    <div class="mini" data-plot="plotSPPV" data-title="SP vs PV"><span class="mtitle">① SP & PV <span class="mdesc">— Setpoint tracking</span></span><canvas id="plotSPPV"></canvas><div class="stats-bar" id="statsSPPV"></div></div>
+    <div class="mini" data-plot="plotPID" data-title="P·I·D"><span class="mtitle">② P · I · D</span><canvas id="plotPID"></canvas><div class="stats-bar" id="statsPID"></div></div>
+    <div class="mini" data-plot="plotErr" data-title="Error"><span class="mtitle">③ Error</span><canvas id="plotErr"></canvas><div class="stats-bar" id="statsErr"></div></div>
+    <div class="mini" data-plot="plotOP" data-title="Output"><span class="mtitle">④ Output <span class="mdesc">— CV cmd · CV fb</span></span><canvas id="plotOP"></canvas><div class="stats-bar" id="statsOP"></div></div>
+  </div>
+  <div class="plot-tooltip" id="plotTooltip"></div>
+</div>
+<div class="panel">
+  <div class="faceplate" data-wf-target="5" data-wf-target-secondary="1" id="faceplateEl">
+    <div class="fp-title"><input type="text" class="tag" id="loopTag" value="LIC-101"><span class="fp-mode auto" id="modeTag">AUTO</span></div>
+    <div class="fp-desc" id="loopDesc">Level Controller — Tank level control loop</div>
+    <div class="fp-vals"><span class="lbl">SP</span><span class="val sp-val" id="spDisp">50.00</span><span class="unit" id="spUnit">%</span></div>
+    <div class="fp-vals"><span class="lbl">PV</span><span class="val pv-val" id="pvDisp">50.00</span><span class="unit" id="pvUnit">%</span></div>
+    <div class="fp-vals"><span class="lbl">CV</span><span class="val op-val" id="opDisp">50.00</span><span class="unit">%</span></div>
+    <div class="bar"><div id="opBar" style="width:50%"></div></div>
+    <div class="sp-input"><label>SP:</label><input type="number" id="spInput" value="50" step="0.1"></div>
+    <div class="custom-step-row" id="spCustomRow"><button onclick="stepSPCustom(-1)" class="bad">SP−</button><input type="number" id="spCustomDelta" value="5" step="0.5"><button onclick="stepSPCustom(1)" class="ok">SP+</button></div>
+    <div class="fp-ctrl"><button onclick="toggleMode()">A / M</button><button onclick="resetSim()">RESET</button></div>
+    <div class="sp-input" id="manRow" style="display:none"><label>OP:</label><input type="number" id="opInput" value="50" step="0.1"></div>
+    <div class="custom-step-row" id="opCustomRow" style="display:none"><button onclick="stepOPCustom(-1)" class="bad">OP−</button><input type="number" id="opCustomDelta" value="5" step="0.5"><button onclick="stepOPCustom(1)" class="ok">OP+</button></div>
+    <details style="margin-top:8px;background:#1a2028;border-color:#3a4048">
+      <summary style="font-size:11px;color:#8ec5ff;padding:5px 8px">🔧 Advanced (2DOF / anti-windup / bias)</summary>
+      <div style="padding:5px 8px 8px">
+        <div class="row"><label>β (SP wt P)</label><input type="number" id="beta" step="0.1" value="1.0"></div>
+        <div class="row"><label>γ (SP wt D)</label><input type="number" id="gamma" step="0.1" value="0.0"></div>
+        <div class="row"><label>Anti-windup</label><select id="antiWindup"><option value="clamp" selected>Clamping</option><option value="backcalc">Back-calc</option><option value="off">Off</option></select></div>
+        <div class="row"><label>Tt (s)</label><input type="number" id="Tt" step="1" value="10"></div>
+        <div class="row"><label>Deadband</label><input type="number" id="deadband" step="0.1" value="0"></div>
+        <div class="row"><label>OP rate (%/s)</label><input type="number" id="rateLimit" step="1" value="0"></div>
+        <div class="row"><label>Bias (%)</label><input type="number" id="bias" step="1" value="50"></div>
+        <div class="row"><label>Direction</label><select id="direction"><option value="direct">Direct</option><option value="reverse">Reverse</option></select></div>
+      </div>
+    </details>
+  </div>
+  <details class="autotune-wizard" data-wf-target="4" open>
+    <summary style="cursor:pointer;color:#8ec5ff;font-size:13px;font-weight:bold;padding:3px 0">🎯 Process Auto-Tune (SIMC)</summary>
+    <div style="padding-top:8px">
+      <div class="obj-row">
+        <div class="obj-btn" id="objConservative" onclick="setObjective('conservative')">🛡 Conservative</div>
+        <div class="obj-btn active" id="objBalanced" onclick="setObjective('balanced')">⚖ Balanced</div>
+        <div class="obj-btn" id="objAggressive" onclick="setObjective('aggressive')">⚡ Aggressive</div>
+      </div>
+      <div class="obj-explain" id="objExplain">Balanced — Skogestad recommended λ = 3·θ. Best compromise for most industrial loops.</div>
+      <div class="response-slider">
+        <div class="hdr"><span>Closed-Loop Response (λ)</span><span id="respLabel">Balanced</span></div>
+        <input type="range" id="respSlider" min="0" max="100" value="50" oninput="onResponseChange()">
+        <div class="ends"><span>← Robust</span><span>Fast →</span></div>
+      </div>
+      <div class="row"><label>Controller Type</label><select id="controllerType" onchange="onControllerTypeChange()"><option value="auto" selected>🤖 Auto</option><option value="pi">PI</option><option value="pid">PID</option></select></div>
+      <div class="method-badge" id="methodBadge">Method: SIMC · λ = <span class="lambda">—</span> s</div>
+      <div class="lambda-info"><span>λ/θ = <b id="lambdaThetaRatio">—</b></span><span>Ti/τ = <b id="tiTauRatio">—</b></span></div>
+      <div class="predict-panel">
+        <h4>📊 Predicted Response</h4>
+        <div class="pred-summary">
+          <div class="pred-cell cur"><span class="l">Cur Overshoot</span><span class="v" id="curOvershoot">—</span></div>
+          <div class="pred-cell new"><span class="l">New Overshoot</span><span class="v" id="newOvershoot">—</span></div>
+          <div class="pred-cell cur"><span class="l">Cur Settle</span><span class="v" id="curSettle">—</span></div>
+          <div class="pred-cell new"><span class="l">New Settle</span><span class="v" id="newSettle">—</span></div>
+        </div>
+        <div style="margin-top:5px"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)"><span>Robustness</span><span id="robustLabel">—</span></div><div class="robust-bar"><div id="robustFill" style="width:0%"></div></div></div>
+        <div class="pred-warn" id="predWarn"></div>
+        <div class="preview-canvas"><span class="cap" id="previewCap">Predicted (Current only)</span><canvas id="previewCanvas"></canvas></div>
+      </div>
+      <div class="btnrow"><button onclick="proposeAutoTune()" class="primary">⚡ Propose</button><button onclick="freezeBaseline()" class="ok">📌 Baseline</button></div>
+      <div class="btnrow single"><button onclick="clearBaseline()">✕ Clear Baseline</button></div>
+      <div class="btnrow" style="margin-top:6px"><button onclick="scrambleTuning()" class="warn">🎲 Scramble</button><button onclick="defaultTuning()">↺ Defaults</button></div>
+    </div>
+  </details>
+  <hr>
+  <div class="group" data-wf-target="4">
+    <h2>PID Parameters</h2>
+    <div class="algo-info"><b>ISA form:</b> CV = Kp·[e + (1/Ti)∫e + Td·de/dt] · <b>Time:</b> s</div>
+    <div class="locked-info">🔒 <b>Current column is read-only.</b> Edit in <span style="color:var(--warn)">Proposed</span> and click Apply. Previous values are archived.</div>
+    <div class="tune-table">
+      <div class="header"><div></div><div class="col-prev">◀ PREVIOUS</div><div class="col-active">✓ CURRENT</div><div class="col-proposed">⚡ PROPOSED</div></div>
+      <div class="tune-row"><label data-tip="Kp">Kp</label><input type="number" id="KcPrev" class="val-prev empty" step="0.05" value="" placeholder="—" readonly><input type="number" id="Kc" class="val-active" step="0.05" value="2.0" disabled><input type="number" id="KcProposed" class="val-proposed empty" step="0.05" placeholder="—"></div>
+      <div class="tune-row"><label data-tip="Ti">Ti <span class="u">(s)</span></label><input type="number" id="TiPrev" class="val-prev empty" step="1" value="" placeholder="—" readonly><input type="number" id="Ti" class="val-active" step="1" value="120" disabled><input type="number" id="TiProposed" class="val-proposed empty" step="1" placeholder="—"></div>
+      <div class="tune-row"><label data-tip="Td">Td <span class="u">(s)</span></label><input type="number" id="TdPrev" class="val-prev empty" step="0.5" value="" placeholder="—" readonly><input type="number" id="Td" class="val-active" step="0.5" value="0" disabled><input type="number" id="TdProposed" class="val-proposed empty" step="0.5" placeholder="—"></div>
+      <div class="tune-row"><label data-tip="alpha">α</label><input type="number" id="alphaPrev" class="val-prev empty" step="0.05" value="" placeholder="—" readonly><input type="number" id="alpha" class="val-active" step="0.05" value="0.1" disabled><input type="number" id="alphaProposed" class="val-proposed empty" step="0.05" placeholder="—"></div>
+    </div>
+    <div class="proposed-source" id="proposedSource"></div>
+    <div class="no-proposal-hint" id="noProposalHint">💡 Slider updates Proposed live. Edit values in Proposed column or use Auto-Tune.</div>
+    <div class="btnrow" id="proposalActions" style="display:none"><button onclick="confirmLoadProposed()" class="ok">✓ Apply Proposed → Current</button><button onclick="discardProposed()" class="bad">✕ Discard</button></div>
+    <div class="btnrow single" style="margin-top:4px"><button onclick="revertToPrevious()" class="warn tiny" id="revertBtn" disabled>↶ Revert to Previous</button></div>
+  </div>
+  <hr>
+  <!-- v2.24.8: RESTORED Tuning Guide 13 sections (0-12) with calculators - PERMANENT COMMITMENT -->
+  <details data-wf-target-soft="4">
+    <summary style="color:var(--accent);font-weight:bold;padding:5px 8px">📚 Tuning Guide & Calculators</summary>
+    <div style="padding:6px">
+      <details><summary>0. PID Primer — What Each Term Does</summary>
+        <div class="content">
+          <ul><li><b>P (Kp):</b> reacts to current error. Higher = faster/oscillatory. Leaves offset.</li>
+          <li><b>I (Ti):</b> eliminates offset via accumulated error. Smaller Ti = more aggressive.</li>
+          <li><b>D (Td):</b> reacts to rate of PV. Damps overshoot. Amplifies noise.</li></ul>
+          <h4>DCS controller forms</h4>
+          <table><tr><th>Form</th><th>Equation</th><th>Where</th></tr>
+          <tr><td>ISA (ideal)</td><td>Kp·[e + (1/Ti)∫e + Td·de/dt]</td><td>Honeywell, ABB, this tool</td></tr>
+          <tr><td>Parallel</td><td>Kp·e + Ki·∫e + Kd·de/dt</td><td>Allen-Bradley Logix</td></tr>
+          <tr><td>Series</td><td>Kp·(1+1/(Ti·s))·(1+Td·s)</td><td>Foxboro, legacy</td></tr></table>
+          <div class="warn-box">⚠ Same Kp/Ti/Td give different responses in different forms. Always confirm before copying tunes between DCSs.</div>
+        </div>
+      </details>
+      <details><summary>1. Open-Loop Step Test</summary>
+        <div class="content">
+          <p>Every tuning method needs three numbers: <b>Kp, τ, θ</b>. Get them from a step test.</p>
+          <div class="formula">Kp = ΔPV / ΔOP</div>
+          <div class="formula">θ = time from step until PV moves</div>
+          <div class="formula">τ = time from end of θ until PV reaches 63.2% of ΔPV</div>
+          <p><b>v2.24.7+ automation:</b> Auto Sequence <b>Identify + Tune</b> mode automates this with 8 OP steps (2↑ 2↓ 2↓ 2↑) and fits FOPDT model automatically.</p>
+        </div>
+      </details>
+      <details><summary>2. Ziegler-Nichols (Open Loop)</summary>
+        <div class="content">
+          <p>Published 1942. Quarter-amplitude decay — fast but oscillatory.</p>
+          <table><tr><th>Mode</th><th>Kp</th><th>Ti</th><th>Td</th></tr>
+          <tr><td>PI</td><td>0.9·τ/(Kp·θ)</td><td>3.33·θ</td><td>—</td></tr>
+          <tr><td>PID</td><td>1.2·τ/(Kp·θ)</td><td>2·θ</td><td>0.5·θ</td></tr></table>
+          <div class="calc" data-method="zn">
+            <div class="calc-title">⚙ Z-N Calculator</div>
+            <div class="calc-in">
+              <label>Kp <input type="number" class="ci-kp" value="1.5" step="0.1"></label>
+              <label>τ <input type="number" class="ci-tau" value="20"></label>
+              <label>θ <input type="number" class="ci-theta" value="5" step="0.5"></label>
+              <label>Form <select class="ci-form"><option>PI</option><option selected>PID</option></select></label>
+            </div>
+            <div class="calc-out"><div><span class="ol">Kc</span><span class="ov" data-out="kc">—</span></div><div><span class="ol">Ti</span><span class="ov" data-out="ti">—</span></div><div><span class="ol">Td</span><span class="ov" data-out="td">—</span></div></div>
+            <div class="calc-btns"><button class="tiny" onclick="calcZN(this)">Calc</button><button class="tiny primary" onclick="proposeFromCalc(this,'Z-N')">→ Propose</button><button class="tiny" onclick="useProcess(this)">Use Model</button></div>
+          </div>
+        </div>
+      </details>
+      <details><summary>3. Ziegler-Nichols (Closed Loop)</summary>
+        <div class="content">
+          <p>Ku = ultimate gain, Pu = ultimate period (s). Increase Kp with Ti=∞ until sustained oscillation.</p>
+          <table><tr><th>Mode</th><th>Kp</th><th>Ti</th><th>Td</th></tr>
+          <tr><td>PI</td><td>0.45·Ku</td><td>Pu/1.2</td><td>—</td></tr>
+          <tr><td>PID</td><td>0.6·Ku</td><td>Pu/2</td><td>Pu/8</td></tr></table>
+        </div>
+      </details>
+      <details><summary>4. Lambda Tuning</summary>
+        <div class="content">
+          <div class="formula">Kc = τ/[Kp·(λ+θ)], Ti = τ</div>
+          <p>λ is the closed-loop time constant desired. Larger λ = slower, more robust.</p>
+          <div class="calc" data-method="lambda">
+            <div class="calc-title">⚙ Lambda Calculator</div>
+            <div class="calc-in">
+              <label>Kp <input type="number" class="ci-kp" value="1.5" step="0.1"></label>
+              <label>τ <input type="number" class="ci-tau" value="20"></label>
+              <label>θ <input type="number" class="ci-theta" value="5" step="0.5"></label>
+              <label>λ <input type="number" class="ci-lambda" value="20"></label>
+            </div>
+            <div class="calc-out"><div><span class="ol">Kc</span><span class="ov" data-out="kc">—</span></div><div><span class="ol">Ti</span><span class="ov" data-out="ti">—</span></div><div><span class="ol">Td</span><span class="ov na" data-out="td">N/A</span></div></div>
+            <div class="calc-btns"><button class="tiny" onclick="calcLambda(this)">Calc</button><button class="tiny primary" onclick="proposeFromCalc(this,'Lambda')">→ Propose</button><button class="tiny" onclick="useProcess(this)">Use Model</button></div>
+          </div>
+        </div>
+      </details>
+      <details open><summary>⭐ 5. SIMC (Skogestad) — ACTIVE METHOD</summary>
+        <div class="content">
+          <div class="formula">Kc = τ/[Kp·(λ+θ)]</div>
+          <div class="formula">SIMC classic: Ti = min(τ, 4·(λ+θ))</div>
+          <div class="formula">Improved SIMC (v2.24.5+): If τ/θ &gt; 5 → Ti = 4·(λ+θ) WITHOUT τ cap</div>
+          <div class="formula">Td = θ/2 (only for PID)</div>
+          <p><b>Auto-Tune uses SIMC:</b> Conservative λ=8θ, Balanced λ=3θ, Aggressive λ=θ. Slider modulates λ ×0.5 to ×2.</p>
+          <div class="calc" data-method="simc">
+            <div class="calc-title">⚙ SIMC Calculator</div>
+            <div class="calc-in">
+              <label>Kp <input type="number" class="ci-kp" value="1.5" step="0.1"></label>
+              <label>τ <input type="number" class="ci-tau" value="20"></label>
+              <label>θ <input type="number" class="ci-theta" value="5" step="0.5"></label>
+              <label>λ <input type="number" class="ci-lambda" value="5" step="0.5"></label>
+            </div>
+            <div class="calc-out"><div><span class="ol">Kc</span><span class="ov" data-out="kc">—</span></div><div><span class="ol">Ti</span><span class="ov" data-out="ti">—</span></div><div><span class="ol">Td</span><span class="ov" data-out="td">—</span></div></div>
+            <div class="calc-btns"><button class="tiny" onclick="calcSIMC(this)">Calc</button><button class="tiny primary" onclick="proposeFromCalc(this,'SIMC')">→ Propose</button><button class="tiny" onclick="useProcess(this)">Use Model</button></div>
+          </div>
+        </div>
+      </details>
+      <details><summary>⭐ 6. Damping Estimation from Overshoot (v2.24.7+)</summary>
+        <div class="content">
+          <p>Post-verify recommendation uses second-order underdamped analysis:</p>
+          <div class="formula">ζ = −ln(OS/100) / √(π² + ln²(OS/100))</div>
+          <p>Where OS is measured overshoot %. From ζ derive corrected λ:</p>
+          <div class="formula">λ_new = λ_old · (ζ_target / ζ_observed)²</div>
+          <p>Target ζ = 0.7 (well-damped, ~5% overshoot). Then SIMC applied with λ_new.</p>
+        </div>
+      </details>
+      <details><summary>7. Cohen-Coon</summary>
+        <div class="content">
+          <p>Best when θ/τ &gt; 0.3. Let r = θ/τ.</p>
+          <div class="formula">Kc = (1/Kp)·(τ/θ)·(4/3+r/4)</div>
+        </div>
+      </details>
+      <details><summary>8. IMC (Internal Model Control)</summary>
+        <div class="content">
+          <div class="formula">Kc = (1/Kp)·(τ+θ/2)/(τc+θ/2), Ti = τ+θ/2, Td = τ·θ/(2τ+θ)</div>
+        </div>
+      </details>
+      <details><summary>9. Manual Trial &amp; Error</summary>
+        <div class="content">
+          <ol style="margin:3px 0 3px 16px;padding:0">
+            <li>Start Ti = 9999, Td = 0, Kp = 0.5.</li>
+            <li>Step SP: sluggish → double Kp; oscillates → halve Kp.</li>
+            <li>Reduce Ti (start ~3·θ) until offset vanishes without oscillation.</li>
+            <li>Clean PV + overshoot → add Td ≈ θ/2.</li>
+          </ol>
+          <h4>Diagnostic</h4>
+          <table><tr><th>Symptom</th><th>Fix</th></tr>
+          <tr><td>Sustained oscillation</td><td>↓ Kp 30-50%</td></tr>
+          <tr><td>Growing oscillation</td><td>↑ Ti ×1.5</td></tr>
+          <tr><td>PV chatter</td><td>Td = 0 or ↑ α</td></tr></table>
+        </div>
+      </details>
+      <details><summary>10. Relay Autotune (Åström-Hägglund)</summary>
+        <div class="content">
+          <div class="formula">Ku = 4·h / (π·a)</div>
+          <p>Safer than closed-loop Z-N. Built into Honeywell LOOPTUNE, Emerson InSight, ABB AdaptivePID.</p>
+        </div>
+      </details>
+      <details><summary>11. Mining-Specific Heuristics</summary>
+        <div class="content">
+          <h4>Flow / pressure</h4><ul><li>PI only. Lambda λ=τ. Kc 0.3–0.8, Ti 5–20 s.</li></ul>
+          <h4>Level (surge tanks)</h4><ul><li>Ti puede ser 3-8× τ (Improved SIMC lo permite). Tight: λ≈θ. Surge: λ=5τ+.</li></ul>
+          <h4>Density / pulp</h4><ul><li>Slow, very noisy. Kc 0.2–0.5, Ti 60–180 s, no Td.</li></ul>
+          <h4>SAG mill load</h4><ul><li>Kc 0.1–0.3, Ti 120–300 s.</li></ul>
+          <h4>Temperature</h4><ul><li>Cohen-Coon or SIMC λ=θ. Include Td.</li></ul>
+        </div>
+      </details>
+      <details><summary>12. Cheat Sheet</summary>
+        <div class="content">
+          <table><tr><th>Process</th><th>First choice</th></tr>
+          <tr><td>Flow, pressure</td><td>Lambda PI, λ=τ</td></tr>
+          <tr><td>Level (tight)</td><td>SIMC integrating, λ=θ</td></tr>
+          <tr><td>Level (surge)</td><td>Lambda, λ=5τ+</td></tr>
+          <tr><td>Temperature</td><td>Cohen-Coon PID or SIMC</td></tr>
+          <tr><td>Density</td><td>Lambda PI, λ=2τ</td></tr></table>
+          <h4>Sanity checks</h4>
+          <ul><li>Kc·Kp ≈ 0.3–1.5 for most PI loops</li>
+          <li>Ti ≈ τ (Lambda) or 2–4·θ (Z-N)</li>
+          <li>Td ≤ θ always</li>
+          <li>Overshoot &lt; 15%, Gm ≥ 6 dB, Pm ≥ 45°</li>
+          <li>Target damping ζ ≈ 0.7 for balanced response</li></ul>
+        </div>
+      </details>
+    </div>
+  </details>
+</div>
+</div>
+<div id="toast">Saved</div>
+<div id="tuningCaptureIndicator">📊 Capturing...</div>
+<div id="autoSeqIndicator">🧪 Auto Seq running...</div>
+<div id="dataCapIndicator">⏺ REC · 0 samples</div>
+<div id="confirmModal"><div class="box"><h2>⚠ Apply Proposed?</h2><div style="color:#ccc;font-size:12px">Current will move to Previous. Proposed will become Current.</div><div class="diff" id="confirmDiff"></div><div class="btns"><button onclick="cancelLoad()" class="bad">✕ Cancel</button><button onclick="confirmedLoadProposed()" class="ok">✓ Confirm</button></div></div></div>
+<div id="reportModal"><div class="box"><div id="rptContent"></div><div class="btns"><button onclick="downloadReport()" class="primary">📥 Download HTML</button><button onclick="closeReport()" class="bad">✕ Close</button></div></div></div>
+<div id="importModal"><div class="box"><h2>📥 Import CSV</h2><div style="color:#ccc;font-size:12px;margin-bottom:10px">Columns: Timestamp, t_s, SP, PV, CV</div><div class="drop-zone" id="dropZone" onclick="document.getElementById('importFile').click()"><div style="font-size:40px;color:var(--accent)">📁</div><div style="color:#ccc;margin-top:8px;font-size:12px">Click or drop CSV</div></div><input type="file" id="importFile" accept=".csv" style="display:none" onchange="handleImportFile(event)"><div class="status" id="importStatus">Waiting...</div><div class="btns"><button onclick="closeImportModal()" class="bad">✕ Cancel</button><button onclick="applyImport()" class="ok" id="applyImportBtn" disabled>✓ Apply</button></div></div></div>
+<div id="autoSeqModal"><div class="box">
+  <h1>🧪 Auto Sequence Results</h1>
+  <div id="autoSeqContent"></div>
+  <div class="btns">
+    <button onclick="applyRecommendedTuning()" class="ok" id="applyRecBtn" style="display:none">✓ Apply Recommended to Proposed</button>
+    <button onclick="downloadAutoSeqReport()" class="primary">📥 Download</button>
+    <button onclick="closeAutoSeqModal()" class="bad">✕ Close</button>
+  </div>
+</div></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+function num(id,f=0){const el=$(id);if(!el)return f;const v=parseFloat(el.value);return isFinite(v)?v:f;}
+function fmt(v,d=2){if(!isFinite(v))return '—';return v.toFixed(d);}
+function rand(a,b){return a+Math.random()*(b-a);}
+function toast(msg,color='#1b5e20'){const el=$('toast');el.textContent=msg;el.style.background=color;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
+const PARAM_HELP={
+  procKp:{t:'Kp_process',d:'ΔPV/ΔOP steady state'},
+  procTau:{t:'τ (s)',d:'Time to 63.2%'},
+  procTheta:{t:'θ (s)',d:'Dead time'},
+  Kp:{t:'Kp — Controller gain',d:'Read-only. Edit in Proposed.',f:'P = Kp·e'},
+  Ti:{t:'Ti (s)',d:'Read-only. Edit in Proposed.',f:'I = (Kp/Ti)·∫e·dt'},
+  Td:{t:'Td (s)',d:'Read-only. Edit in Proposed.',f:'D = Kp·Td·d(PV)/dt'},
+  alpha:{t:'α filter',d:'Read-only. Edit in Proposed.'}
+};
+function initParamTooltips(){
+  const tip=$('paramTip');
+  document.querySelectorAll('[data-tip]').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{const i=PARAM_HELP[el.dataset.tip];if(!i)return;let h='<b>'+i.t+'</b><br>'+i.d;if(i.f)h+='<div class="formula">'+i.f+'</div>';tip.innerHTML=h;tip.classList.add('show');});
+    el.addEventListener('mousemove',e=>{let l=e.clientX+14,tt=e.clientY+14;if(l+300>window.innerWidth)l=e.clientX-314;if(tt+140>window.innerHeight)tt=e.clientY-154;tip.style.left=l+'px';tip.style.top=tt+'px';});
+    el.addEventListener('mouseleave',()=>tip.classList.remove('show'));
+  });
+}
+let simStartDate=new Date();
+let running=false,mode='AUTO',t=0;
+let history=[];const HIST_MAX=1500;
+let pvTrue=50,pvOut=50,opVal=50,spVal=50;
+let integ=0,prevPV=50,derivState=0;
+let opDelayBuf=[],hideProc=false;
+let actuatorPos=50,cvCommanded=50;
+let iae=0,osh=0,pvMax=0;
+let stepStartTime=null,stepStartPV=null,stepStartSP=null;
+let settleTime=null,riseTime=null;
+let opValveActual=50,baseline=null;
+let oscBuffer=[],oscIndex=0,stickStuckAt=50;
+let spCommitted=50,opCommitted=50;
+let proposal=null;
+let distRandomWalk=0,distPulseWallStartMs=null,lastDistValue=0;
+let controlObjective='balanced';
+let distAnimStart=performance.now(),distActualHistory=[];
+const DIST_HISTORY_SEC=5;
+let importedData=null;
+let lastTuning={Kc:2.0,Ti:120,Td:0,alpha:0.1};
+let tuningChangeHistory=JSON.parse(localStorage.getItem('pid_v248_tuning_log')||'[]');
+let activeCapture=null;
+const CAPTURE_SEC=60;
+const KP_MAX=10,KP_MIN=0.05,TI_MIN=0.5;
+const LAG_DOMINANT_RATIO=5;
+let previousTuning=null;
+let autoSeqRunning=false;
+let autoSeqAbort=false;
+let autoSeqResults=[];
+let recommendedTuning=null;
+let stepTestSegments=[];
+// v2.24.8: Data Capture state
+let dataCaptureActive=false;
+let dataCaptureBuffer={simulation:[],tunings:[],reports:[],autoSeqResults:[],startTs:null,folderName:null,dirHandle:null};
+const LOOP_PRESETS={
+  FIC:{tag:'FIC-101',unit:'m³/h',desc:'Flow Controller — Volumetric flow regulation',proc:{Kp:1.0,tau:5,theta:2,noise:0.4},pid:{Kc:0.5,Ti:15,Td:0,alpha:0.1}},
+  WIC:{tag:'WIC-101',unit:'t/h',desc:'Mass Flow Controller — Coriolis or gravimetric',proc:{Kp:1.0,tau:8,theta:2,noise:0.5},pid:{Kc:0.4,Ti:20,Td:0,alpha:0.15}},
+  LIC:{tag:'LIC-101',unit:'%',desc:'Level Controller — Tank level regulation',proc:{Kp:1.0,tau:25,theta:3,noise:0.2},pid:{Kc:2.0,Ti:120,Td:0,alpha:0.1}},
+  TIC:{tag:'TIC-101',unit:'°C',desc:'Temperature Controller — Slow thermal loop',proc:{Kp:2.0,tau:60,theta:15,noise:0.15},pid:{Kc:1.5,Ti:90,Td:30,alpha:0.1}},
+  DIC:{tag:'DIC-101',unit:'g/cc',desc:'Density Controller — Slurry or fluid density',proc:{Kp:1.5,tau:45,theta:10,noise:0.6},pid:{Kc:0.5,Ti:180,Td:0,alpha:0.2}},
+  PIC:{tag:'PIC-101',unit:'kPa',desc:'Pressure Controller — Fast pressure regulation',proc:{Kp:1.2,tau:10,theta:2,noise:0.3},pid:{Kc:0.8,Ti:30,Td:0,alpha:0.1}}
+};
+function formatTimestamp(s){const d=new Date(simStartDate.getTime()+s*1000);return String(d.getFullYear()).slice(-2)+':'+String(d.getMonth()+1).padStart(2,'0')+':'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
+function formatTimestampShort(s){const d=new Date(simStartDate.getTime()+s*1000);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
+function updateWorkflowState(){
+  const done={1:false,2:false,4:false,5:false,6:false};
+  if(num('procKp',0)>0&&num('procTau',0)>0&&num('procTheta',0)>0)done[1]=true;
+  if(autoSeqResults.length>0||stepTestSegments.length>=2)done[2]=true;
+  const p=LOOP_PRESETS[$('loopType').value];
+  if(p&&(Math.abs(num('Kc',1)-p.pid.Kc)>0.01||Math.abs(num('Ti',20)-p.pid.Ti)>0.5))done[4]=true;
+  if(history.length>100)done[5]=true;
+  if(tuningChangeHistory.length>0||baseline)done[6]=true;
+  document.querySelectorAll('.wf-step').forEach(el=>{const n=parseInt(el.dataset.step);if(done[n])el.classList.add('done');else el.classList.remove('done');});
+}
+// v2.24.8: Enhanced tuning capture with full data for report
+function checkTuningChange(){
+  const cur={Kc:num('Kc',1),Ti:num('Ti',20),Td:num('Td',0),alpha:num('alpha',0.1)};
+  const changed=Math.abs(cur.Kc-lastTuning.Kc)>0.005||Math.abs(cur.Ti-lastTuning.Ti)>0.5||Math.abs(cur.Td-lastTuning.Td)>0.05;
+  if(changed&&!activeCapture&&history.length>10){
+    const cutoff=t-CAPTURE_SEC;
+    const beforeBuffer=history.filter(h=>h.t>=cutoff).map(h=>({...h}));
+    activeCapture={tsStart:t,tsStartWall:formatTimestamp(t),beforeBuffer,afterBuffer:[],oldTune:{...lastTuning},newTune:{...cur}};
+    $('tuningCaptureIndicator').classList.add('show');
+  }
+  lastTuning=cur;
+  if(activeCapture&&history.length){
+    activeCapture.afterBuffer.push({...history[history.length-1]});
+    if(t-activeCapture.tsStart>=CAPTURE_SEC){
+      const entry={timestamp:activeCapture.tsStartWall,oldTune:activeCapture.oldTune,newTune:activeCapture.newTune,loopTag:$('loopTag').value,beforeStats:computeSeriesStats(activeCapture.beforeBuffer),afterStats:computeSeriesStats(activeCapture.afterBuffer)};
+      tuningChangeHistory.push(entry);
+      if(tuningChangeHistory.length>10)tuningChangeHistory.shift();
+      try{localStorage.setItem('pid_v248_tuning_log',JSON.stringify(tuningChangeHistory));}catch(e){}
+      $('tuningCaptureIndicator').classList.remove('show');
+      toast('✓ Change captured (60s before/after)','#7b1fa2');
+      if(dataCaptureActive)dataCaptureBuffer.tunings.push(entry);
+      activeCapture=null;
+    }
+  }
+}
+function computeSeriesStats(arr){
+  const keys=['sp','pv','op','cvFb'];const out={};
+  keys.forEach(k=>{
+    const vals=arr.map(h=>h[k]).filter(v=>isFinite(v));
+    if(!vals.length){out[k]=null;return;}
+    const s=[...vals].sort((a,b)=>a-b);
+    const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+    const std=Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length);
+    out[k]={min:s[0],q1:s[Math.floor(s.length*0.25)],med:s[Math.floor(s.length*0.5)],q3:s[Math.floor(s.length*0.75)],max:s[s.length-1],mean,std,n:vals.length};
+  });
+  const spMean=out.sp?out.sp.mean:0,pvMax=out.pv?out.pv.max:0;
+  const span=Math.abs(out.pv?(out.pv.max-out.pv.min):0);
+  out.overshoot=span>0.1?Math.max(0,(pvMax-spMean)/Math.max(0.01,spMean)*100):0;
+  out.iae=arr.reduce((sum,h,i)=>{if(i===0)return sum;const dt=arr[i].t-arr[i-1].t;return sum+Math.abs(h.sp-h.pv)*dt;},0);
+  return out;
+}
+function gotoStep(n){document.querySelectorAll('.wf-step').forEach(el=>{el.classList.remove('active');if(parseInt(el.dataset.step)===n)el.classList.add('active');});applyGuided(n);}
+function applyGuided(n){
+  document.body.classList.add('guided');
+  $('exitGuidedBtn').style.display='inline-block';
+  document.querySelectorAll('.dimmable,.wf-target,.wf-target-secondary,.wf-target-soft,.loop-type-highlight').forEach(el=>el.classList.remove('dimmable','wf-target','wf-target-secondary','wf-target-soft','loop-type-highlight'));
+  document.querySelectorAll('.panel > .group, .panel > hr, .panel > details').forEach(el=>{if(!el.classList.contains('always-visible'))el.classList.add('dimmable');});
+  document.querySelectorAll('[data-wf-target="'+n+'"]').forEach(el=>{el.classList.remove('dimmable');el.classList.add('wf-target');});
+  document.querySelectorAll('[data-wf-target-secondary="'+n+'"]').forEach(el=>{el.classList.remove('dimmable');el.classList.add('wf-target-secondary');});
+  document.querySelectorAll('[data-wf-target-alt="'+n+'"]').forEach(el=>{el.classList.remove('dimmable');el.classList.add('wf-target');});
+  document.querySelectorAll('[data-wf-target-soft="'+n+'"]').forEach(el=>{el.classList.remove('dimmable');el.classList.add('wf-target-soft');});
+  document.querySelectorAll('.wf-target,.wf-target-secondary,.wf-target-soft').forEach(el=>{let p=el.parentElement;while(p){p.classList.remove('dimmable');p=p.parentElement;}});
+  if(n===2){$('loopTypeRow').classList.add('loop-type-highlight');}
+}
+function exitGuided(){document.body.classList.remove('guided');document.querySelectorAll('.dimmable,.wf-target,.wf-target-secondary,.wf-target-soft,.loop-type-highlight').forEach(el=>el.classList.remove('dimmable','wf-target','wf-target-secondary','wf-target-soft','loop-type-highlight'));document.querySelectorAll('.wf-step').forEach(el=>el.classList.remove('active'));$('exitGuidedBtn').style.display='none';}
+function onActuatorTypeChange(){const d={valve:3.0,motor:1.5,damper:5.0};$('actuatorTau').value=d[$('actuatorType').value].toFixed(1);}
+function applyActuator(cvCmd,dt){const tauA=Math.max(0.1,num('actuatorTau',3));actuatorPos+=(dt/tauA)*(cvCmd-actuatorPos);return actuatorPos;}
+const OBJ_EXPLANATIONS={aggressive:'Aggressive — SIMC λ=θ. Fast, less robust.',balanced:'Balanced — Skogestad recommended λ=3·θ.',conservative:'Conservative — SIMC λ=8·θ. Robust.'};
+const OBJ_LAMBDA_MULT={aggressive:1.0,balanced:3.0,conservative:8.0};
+function setObjective(o){controlObjective=o;['objAggressive','objBalanced','objConservative'].forEach(id=>$(id).classList.remove('active'));$('obj'+o.charAt(0).toUpperCase()+o.slice(1)).classList.add('active');$('objExplain').textContent=OBJ_EXPLANATIONS[o];livePropose();}
+function onResponseChange(){const v=parseFloat($('respSlider').value);$('respLabel').textContent=v<25?'Very Robust':v<45?'Robust':v<55?'Balanced':v<75?'Fast':'Very Aggressive';livePropose();}
+function onControllerTypeChange(){livePropose();}
+function computeAutoTune(){
+  const Kp_p=num('procKp',1),tau=num('procTau',20),th=Math.max(0.1,num('procTheta',5));
+  if(Kp_p===0||tau<=0)return null;
+  const resp=parseFloat($('respSlider').value)/100;
+  const baseMult=OBJ_LAMBDA_MULT[controlObjective];
+  const respFactor=2.0-1.5*resp;
+  const lambda=Math.max(0.1*th,th*baseMult*respFactor);
+  let Kp=tau/(Kp_p*(lambda+th));
+  const tauThetaRatio=tau/th;
+  const isLagDominant=tauThetaRatio>LAG_DOMINANT_RATIO;
+  let Ti,simcVariant;
+  if(isLagDominant){Ti=4*(lambda+th);simcVariant='extended';}
+  else{Ti=Math.min(tau,4*(lambda+th));simcVariant='classic';}
+  let Td=0;
+  const type=$('controllerType').value.toUpperCase();
+  if(type==='PID'||(type==='AUTO'&&th/tau<0.3&&num('procNoise',0.2)<0.4))Td=th/2;
+  Kp=Math.min(Math.max(Math.abs(Kp),KP_MIN),KP_MAX);
+  Ti=Math.max(Ti,TI_MIN);
+  const typeOut=(type==='AUTO')?(Td>0?'PID':'PI'):type;
+  return {Kp,Ti,Td,alpha:num('alpha',0.1),lambda,type:typeOut,method:'SIMC',simcVariant,tauThetaRatio};
+}
+function livePropose(){
+  const t=computeAutoTune();if(!t)return;
+  $('KcProposed').value=t.Kp.toFixed(3);$('TiProposed').value=t.Ti.toFixed(2);$('TdProposed').value=t.Td.toFixed(2);$('alphaProposed').value=t.alpha.toFixed(2);
+  ['KcProposed','TiProposed','TdProposed','alphaProposed'].forEach(id=>$(id).classList.remove('empty'));
+  if(!proposal){proposal={Kp:t.Kp,Kc:t.Kp,Ti:t.Ti,Td:t.Td,alpha:t.alpha,type:t.type};}
+  else{proposal.Kp=t.Kp;proposal.Kc=t.Kp;proposal.Ti=t.Ti;proposal.Td=t.Td;proposal.alpha=t.alpha;proposal.type=t.type;}
+  $('proposedSource').innerHTML='📌 <b>Proposed:</b> SIMC '+t.simcVariant+' · '+controlObjective+' · λ='+t.lambda.toFixed(1)+'s';
+  $('proposedSource').classList.add('show');
+  $('noProposalHint').style.display='none';
+  $('proposalActions').style.display='grid';
+  const vLabel=t.simcVariant==='extended'?'SIMC extended (τ/θ='+t.tauThetaRatio.toFixed(1)+')':'SIMC classic (τ/θ='+t.tauThetaRatio.toFixed(1)+')';
+  $('methodBadge').innerHTML='Method: <b>'+vLabel+'</b> · λ = <span class="lambda">'+t.lambda.toFixed(1)+'</span> s';
+  const tau=num('procTau',20),th=num('procTheta',5);
+  $('lambdaThetaRatio').textContent=(t.lambda/th).toFixed(1);
+  $('tiTauRatio').textContent=(t.Ti/tau).toFixed(2);
+  updatePrediction();
+}
+function predictStepResponse(Kc,Ti,Td){
+  const Kp_p=num('procKp',1),tau=num('procTau',20),th=Math.max(0.1,num('procTheta',5));
+  if(Kc<=0||Kp_p===0)return {overshoot:0,settle:0,curve:[],robust:0};
+  const loopGain=Kc*Kp_p;
+  const tau_cl=tau/Math.max(0.5,loopGain);
+  const zeta=Ti>0?Math.min(2,1/(2*Math.sqrt(Math.max(0.1,loopGain*tau/Ti)))):1;
+  let overshoot=0;
+  if(zeta<1)overshoot=100*Math.exp(-Math.PI*zeta/Math.sqrt(1-zeta*zeta));
+  const settle=Math.min(999,4*tau_cl/Math.max(0.15,zeta));
+  const robust=Math.max(0,Math.min(100,100-(loopGain-1)*20+zeta*30));
+  const curve=[];const dtP=0.5,maxT=Math.min(500,3*settle);
+  for(let tt=0;tt<=maxT;tt+=dtP){
+    let y=0;
+    if(tt<th)y=0;
+    else{const tp=tt-th;if(zeta<1){const wn=1/tau_cl;const wd=wn*Math.sqrt(Math.max(0.001,1-zeta*zeta));y=1-Math.exp(-zeta*wn*tp)*Math.cos(wd*tp);}else y=1-Math.exp(-tp/tau_cl);}
+    curve.push({t:tt,y});
+  }
+  return {overshoot,settle,curve,robust};
+}
+function updatePrediction(){
+  const tune=computeAutoTune();if(!tune)return;
+  const cur=predictStepResponse(num('Kc',1),num('Ti',20),num('Td',0));
+  const nw=predictStepResponse(tune.Kp,tune.Ti,tune.Td);
+  const setEl=(id,txt)=>{const el=$(id);if(el)el.textContent=txt;};
+  setEl('curOvershoot',cur.overshoot.toFixed(1)+' %');setEl('newOvershoot',nw.overshoot.toFixed(1)+' %');setEl('curSettle',cur.settle.toFixed(0)+' s');setEl('newSettle',nw.settle.toFixed(0)+' s');
+  const rf=$('robustFill'),rl=$('robustLabel');
+  if(rf&&rl){rf.style.width=nw.robust+'%';if(nw.robust<40){rf.style.background='var(--bad)';rl.textContent='Low ('+nw.robust.toFixed(0)+')';}else if(nw.robust<70){rf.style.background='var(--warn)';rl.textContent='Moderate ('+nw.robust.toFixed(0)+')';}else{rf.style.background='var(--ok)';rl.textContent='High ('+nw.robust.toFixed(0)+')';}}
+  const w=$('predWarn');
+  if(w){
+    const warnings=[];
+    if(nw.overshoot>25)warnings.push('⚠ Overshoot '+nw.overshoot.toFixed(1)+'%');
+    if(nw.robust<40)warnings.push('⚠ Low robustness');
+    if(tune.Kp>=KP_MAX-0.01)warnings.push('ℹ Kp at cap ('+KP_MAX+')');
+    if(tune.simcVariant==='extended')warnings.push('ℹ Lag-dominant · Ti extended');
+    if(warnings.length){w.className='pred-warn show';w.innerHTML=warnings.join('<br>');}else{w.className='pred-warn ok';w.innerHTML='✓ SIMC design OK';}
+  }
+  drawPreview(cur.curve,proposal?nw.curve:null);
+  const cap=$('previewCap');if(cap)cap.textContent=proposal?'Current vs Proposed':'Current only';
+}
+function drawPreview(curCurve,newCurve){
+  const c=$('previewCanvas');if(!c)return;
+  const r=c.getBoundingClientRect();
+  c.width=Math.max(50,r.width*devicePixelRatio);c.height=Math.max(30,r.height*devicePixelRatio);
+  const ctx=c.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.scale(devicePixelRatio,devicePixelRatio);
+  const W=r.width,H=r.height;ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#222';ctx.setLineDash([1,2]);ctx.beginPath();
+  for(let i=0;i<=4;i++){ctx.moveTo(0,H*i/4);ctx.lineTo(W,H*i/4);}
+  ctx.stroke();ctx.setLineDash([]);
+  const cCur=curCurve||[],cNew=newCurve||[];
+  const tMax=Math.max(cCur.length?cCur[cCur.length-1].t:100,cNew.length?cNew[cNew.length-1].t:100);
+  const yMin=-0.2,yMax=1.6;const xt=t=>t/tMax*W;const yt=y=>H*(1-(y-yMin)/(yMax-yMin));
+  ctx.strokeStyle='#ff5252';ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(0,yt(1));ctx.lineTo(W,yt(1));ctx.stroke();ctx.setLineDash([]);
+  if(cCur.length){ctx.strokeStyle='#66bb6a';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);ctx.beginPath();cCur.forEach((p,i)=>{const x=xt(p.t),y=yt(p.y);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);}
+  if(cNew&&cNew.length){ctx.strokeStyle='#ffb300';ctx.lineWidth=1.8;ctx.beginPath();cNew.forEach((p,i)=>{const x=xt(p.t),y=yt(p.y);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();}
+}
+function clearBaseline(){baseline=null;toast('Cleared');drawAll();}
+function proposeAutoTune(){const t=computeAutoTune();if(!t){toast('⚠ Set Model','#7a1f1f');return;}setProposal(t,'SIMC '+t.simcVariant);}
+function setProposal(newTune,src){
+  proposal={...newTune,source:src};
+  $('KcProposed').value=(newTune.Kp||newTune.Kc||1).toFixed(3);$('TiProposed').value=newTune.Ti.toFixed(2);$('TdProposed').value=newTune.Td.toFixed(2);$('alphaProposed').value=newTune.alpha.toFixed(2);
+  ['KcProposed','TiProposed','TdProposed','alphaProposed'].forEach(id=>$(id).classList.remove('empty'));
+  $('proposedSource').innerHTML='📌 <b>Proposed:</b> '+src;$('proposedSource').classList.add('show');
+  $('noProposalHint').style.display='none';$('proposalActions').style.display='grid';
+  updatePrediction();toast('Proposed');
+}
+function clearProposal(){proposal=null;['KcProposed','TiProposed','TdProposed','alphaProposed'].forEach(id=>{$(id).value='';$(id).classList.add('empty');});$('proposedSource').classList.remove('show');$('noProposalHint').style.display='block';$('proposalActions').style.display='none';updatePrediction();}
+function discardProposed(){clearProposal();toast('Discarded','#7a1f1f');}
+function confirmLoadProposed(){
+  if(!proposal){
+    const manual={Kp:num('KcProposed',NaN),Ti:num('TiProposed',NaN),Td:num('TdProposed',NaN),alpha:num('alphaProposed',NaN)};
+    if(isFinite(manual.Kp)&&isFinite(manual.Ti)){proposal={Kp:manual.Kp,Kc:manual.Kp,Ti:manual.Ti,Td:isFinite(manual.Td)?manual.Td:0,alpha:isFinite(manual.alpha)?manual.alpha:0.1,type:'PI',source:'Manual entry'};}
+    else return;
+  }
+  const Kp_prop=proposal.Kp||proposal.Kc||1;
+  const rows=[['Kp',num('Kc',1).toFixed(3),Kp_prop.toFixed(3)],['Ti (s)',num('Ti',20).toFixed(2),proposal.Ti.toFixed(2)],['Td (s)',num('Td',0).toFixed(2),proposal.Td.toFixed(2)]];
+  $('confirmDiff').innerHTML='<div style="background:#0d0d0d;border:1px solid #444;padding:8px;border-radius:3px;margin:10px 0">'+rows.map(r=>'<div style="display:grid;grid-template-columns:60px 1fr 30px 1fr;gap:8px;font-family:Consolas;font-size:12px;padding:3px 0"><span>'+r[0]+'</span><span style="color:var(--ok);text-align:right">'+r[1]+'</span><span>→</span><span style="color:var(--warn);text-align:left;font-weight:bold">'+r[2]+'</span></div>').join('')+'</div>';
+  $('confirmModal').classList.add('show');
+}
+function cancelLoad(){$('confirmModal').classList.remove('show');}
+function confirmedLoadProposed(){
+  if(!proposal)return;
+  previousTuning={Kp:num('Kc',1),Ti:num('Ti',20),Td:num('Td',0),alpha:num('alpha',0.1)};
+  $('KcPrev').value=previousTuning.Kp.toFixed(3);$('TiPrev').value=previousTuning.Ti.toFixed(2);$('TdPrev').value=previousTuning.Td.toFixed(2);$('alphaPrev').value=previousTuning.alpha.toFixed(2);
+  ['KcPrev','TiPrev','TdPrev','alphaPrev'].forEach(id=>$(id).classList.remove('empty'));
+  $('Kc').value=(proposal.Kp||proposal.Kc||1).toFixed(3);$('Ti').value=proposal.Ti.toFixed(2);$('Td').value=proposal.Td.toFixed(2);$('alpha').value=proposal.alpha.toFixed(2);
+  $('confirmModal').classList.remove('show');clearProposal();$('revertBtn').disabled=false;
+  toast('✓ Applied (Previous archived)');
+  if(mode==='MAN')toggleMode();if(!running)toggleRun();
+}
+function revertToPrevious(){
+  if(!previousTuning)return;
+  const tempCur={Kp:num('Kc',1),Ti:num('Ti',20),Td:num('Td',0),alpha:num('alpha',0.1)};
+  $('Kc').value=previousTuning.Kp.toFixed(3);$('Ti').value=previousTuning.Ti.toFixed(2);$('Td').value=previousTuning.Td.toFixed(2);$('alpha').value=previousTuning.alpha.toFixed(2);
+  previousTuning=tempCur;
+  $('KcPrev').value=tempCur.Kp.toFixed(3);$('TiPrev').value=tempCur.Ti.toFixed(2);$('TdPrev').value=tempCur.Td.toFixed(2);$('alphaPrev').value=tempCur.alpha.toFixed(2);
+  toast('↶ Reverted to Previous');
+}
+function scrambleTuning(){setProposal({Kp:Math.min(rand(0.1,5),KP_MAX),Ti:rand(2,1200),Td:rand(0,8),alpha:0.1,type:'PID',simcVariant:'random',tauThetaRatio:0},'Scramble');}
+function defaultTuning(){const p=LOOP_PRESETS[$('loopType').value];setProposal({Kp:p?p.pid.Kc:1.0,Ti:p?p.pid.Ti:20,Td:p?p.pid.Td:0,alpha:0.1,type:'PI',simcVariant:'preset',tauThetaRatio:0},'Preset defaults');}
+// Calculators
+function readCalc(btn,fields){const card=btn.closest('.calc');const out={_card:card};fields.forEach(f=>{const el=card.querySelector('.ci-'+f);if(el)out[f]=el.tagName==='SELECT'?el.value:parseFloat(el.value);});return out;}
+function writeOut(card,kc,ti,td){const set=(k,v)=>{const el=card.querySelector('[data-out="'+k+'"]');el.textContent=(v===null||v===undefined)?'N/A':fmt(v,3);el.classList.toggle('na',v===null||v===undefined);};set('kc',kc);set('ti',ti);set('td',td);card._lastTune={kc,ti,td};}
+function calcZN(btn){const v=readCalc(btn,['kp','tau','theta','form']);let kc,ti=null,td=null;if(v.form==='PI'){kc=0.9*v.tau/(v.kp*v.theta);ti=3.33*v.theta;}else{kc=1.2*v.tau/(v.kp*v.theta);ti=2*v.theta;td=0.5*v.theta;}writeOut(v._card,kc,ti,td);}
+function calcLambda(btn){const v=readCalc(btn,['kp','tau','theta','lambda']);writeOut(v._card,v.tau/(v.kp*(v.lambda+v.theta)),v.tau,null);}
+function calcSIMC(btn){const v=readCalc(btn,['kp','tau','theta','lambda']);const ratio=v.tau/v.theta;const ti=ratio>LAG_DOMINANT_RATIO?4*(v.lambda+v.theta):Math.min(v.tau,4*(v.lambda+v.theta));writeOut(v._card,v.tau/(v.kp*(v.lambda+v.theta)),ti,null);}
+function proposeFromCalc(btn,methodName){const card=btn.closest('.calc');if(!card._lastTune){toast('Click Calc first','#7a1f1f');return;}const{kc,ti,td}=card._lastTune;const type=(td===null||td===undefined||td===0)?'PI':'PID';setProposal({Kp:Math.min(kc||1,KP_MAX),Ti:Math.max((ti!==null&&ti!==undefined)?ti:9999,TI_MIN),Td:(td!==null&&td!==undefined)?td:0,alpha:num('alpha',0.1),type,lambda:0,simcVariant:'calc',tauThetaRatio:0},methodName+' calc');}
+function useProcess(btn){const card=btn.closest('.calc');card.querySelector('.ci-kp').value=$('procKp').value;card.querySelector('.ci-tau').value=$('procTau').value;card.querySelector('.ci-theta').value=$('procTheta').value;}
+// Disturbance
+function computeDisturbance(timeSec){
+  const type=$('distType').value;let v=0;
+  const A=num('distAmp',0),P=Math.max(0.1,num('distPeriod',60)),off=num('distOffset',0);
+  if(type!=='none'){
+    if(type==='constant')v=A;
+    else if(type==='sinusoidal')v=A*Math.sin(2*Math.PI*timeSec/P);
+    else if(type==='sawtooth')v=A*(2*((timeSec%P)/P)-1);
+    else if(type==='square')v=A*(Math.sin(2*Math.PI*timeSec/P)>=0?1:-1);
+    else if(type==='random'){distRandomWalk+=-0.025*distRandomWalk+A*0.3*(Math.random()-0.5);distRandomWalk=Math.max(-A*2,Math.min(A*2,distRandomWalk));v=distRandomWalk;}
+    v+=off;
+  }
+  if(distPulseWallStartMs!==null){const el=(performance.now()-distPulseWallStartMs)/1000;if(el<num('pulseDur',10))v+=num('pulseMag',15);else distPulseWallStartMs=null;}
+  lastDistValue=v;return v;
+}
+function applyStickSlip(opCmd,sb){if(sb<0.01){stickStuckAt=opCmd;return opCmd;}const d=opCmd-stickStuckAt;if(Math.abs(d)<sb)return stickStuckAt;stickStuckAt+=d-Math.sign(d)*sb*0.5;return stickStuckAt;}
+function simStep(){
+  const dt=num('dt',0.5),Kp_p=num('procKp',1),tau=num('procTau',20),theta=num('procTheta',5),noise=num('procNoise',0.3);
+  const opMin=num('opMin',0),opMax=num('opMax',100),ptype=$('procType').value;
+  const stict=[0,0.5,1.5,3,5][parseInt($('procStiction').value)||0]||0;
+  spVal=spCommitted;let P=0,I=0,D=0,err=spVal-pvOut;
+  if(mode==='AUTO'){
+    const Kp=num('Kc',1),Ti=num('Ti',20),Td=num('Td',0),alpha=num('alpha',0.1);
+    let nextI=integ+Kp*err*dt/Ti;
+    const dPV=(pvOut-prevPV)/dt;
+    derivState+=dt/(Td*alpha+dt)*(dPV-derivState);
+    prevPV=pvOut;
+    P=Kp*err;I=nextI;D=-Kp*Td*derivState;
+    const bias=num('bias',50);
+    let op=bias+P+I+D;
+    if(op>opMax)op=opMax;else if(op<opMin)op=opMin;else integ=nextI;
+    opVal=op;
+  }else{opVal=opCommitted;integ=0;}
+  const dist=computeDisturbance(t);
+  cvCommanded=Math.max(opMin,Math.min(opMax,opVal));
+  const cvAfterActuator=applyActuator(cvCommanded,dt);
+  const opDel=applyStickSlip(cvAfterActuator,stict);
+  opValveActual=opDel;
+  opDelayBuf.push(opDel);
+  const delaySteps=Math.max(1,Math.round(theta/dt));
+  while(opDelayBuf.length>delaySteps+1)opDelayBuf.shift();
+  const opDelayed=opDelayBuf[0];
+  let dpv=ptype==='fopdt'?(Kp_p*(opDelayed-50)+50-pvTrue+dist)/tau:(Kp_p*(opDelayed-50)+dist)/tau;
+  pvTrue+=dpv*dt;
+  if(!isFinite(pvTrue)||Math.abs(pvTrue)>1000){pvTrue=Math.max(0,Math.min(100,pvOut));integ=0;}
+  pvOut=pvTrue+(Math.random()-0.5)*2*noise;
+  iae+=Math.abs(spVal-pvOut)*dt;
+  if(stepStartTime!==null){const dir=Math.sign(stepStartSP-stepStartPV),span=Math.abs(stepStartSP-stepStartPV);if(span>0.5){if(dir>0)pvMax=Math.max(pvMax,pvOut);else pvMax=Math.min(pvMax,pvOut);osh=Math.max(0,(dir*(pvMax-stepStartSP)/span)*100);if(Math.abs(pvOut-stepStartSP)<1){if(settleTime===null&&t-stepStartTime>2)settleTime=t-stepStartTime;}else settleTime=null;}}
+  oscBuffer.push(pvOut-spVal);if(oscBuffer.length>200)oscBuffer.shift();
+  if(oscBuffer.length>50){let cr=0;for(let i=1;i<oscBuffer.length;i++)if(oscBuffer[i-1]*oscBuffer[i]<0)cr++;oscIndex=cr/oscBuffer.length;}
+  t+=dt;
+  const sample={t,pv:pvOut,sp:spVal,op:opVal,cvCmd:cvCommanded,cvFb:actuatorPos,P,I,D,err,dist};
+  history.push(sample);
+  if(history.length>HIST_MAX)history.shift();
+  // v2.24.8: Data capture accumulation
+  if(dataCaptureActive){dataCaptureBuffer.simulation.push(sample);updateDataCaptureIndicator();}
+}
+function toggleRun(){running=!running;$('runBtn').textContent=running?'⏸ Pause':'▶ Run';if(running)loop();}
+function resetSim(){running=false;$('runBtn').textContent='▶ Run';simStartDate=new Date();t=0;pvTrue=50;pvOut=50;opVal=50;integ=0;prevPV=50;derivState=0;opDelayBuf=[];history=[];iae=0;osh=0;pvMax=0;stepStartTime=null;settleTime=null;oscBuffer=[];oscIndex=0;opValveActual=50;stickStuckAt=50;distRandomWalk=0;distPulseWallStartMs=null;lastDistValue=0;distActualHistory=[];actuatorPos=50;cvCommanded=50;activeCapture=null;$('tuningCaptureIndicator').classList.remove('show');if(mode==='MAN'){mode='AUTO';$('modeTag').textContent='AUTO';$('modeTag').className='fp-mode auto';$('manRow').style.display='none';$('opCustomRow').style.display='none';$('spCustomRow').style.display='grid';}spCommitted=50;spVal=50;$('spInput').value='50.0';opCommitted=50;$('opInput').value='50.0';drawAll();updateFaceplate();updateSnap();updateStatsBars();}
+function toggleMode(){mode=(mode==='AUTO')?'MAN':'AUTO';$('modeTag').textContent=mode;$('modeTag').className='fp-mode '+(mode==='AUTO'?'auto':'man');$('manRow').style.display=mode==='MAN'?'flex':'none';$('spCustomRow').style.display=mode==='AUTO'?'grid':'none';$('opCustomRow').style.display=mode==='MAN'?'grid':'none';if(mode==='MAN'){opCommitted=opVal;$('opInput').value=opVal.toFixed(1);}else integ=0;}
+function stepSPCustom(d){const del=num('spCustomDelta',5);const s=Math.max(0,Math.min(100,spCommitted+d*del));spCommitted=s;$('spInput').value=s.toFixed(1);stepStartTime=t;stepStartPV=pvOut;stepStartSP=s;pvMax=pvOut;settleTime=null;}
+function stepOPCustom(d){const del=num('opCustomDelta',5);const opMin=num('opMin',0),opMax=num('opMax',100);opCommitted=Math.max(opMin,Math.min(opMax,opCommitted+d*del));$('opInput').value=opCommitted.toFixed(1);}
+function syncBaseOP(){$('stBaseOP').value=opVal.toFixed(1);}
+function injectDisturbance(){distPulseWallStartMs=performance.now();toast('⚡ Pulse '+num('pulseMag',15)+'%','#ff9800');if(!running)toggleRun();}
+function scrambleProcess(){$('procKp').value=rand(0.5,3.0).toFixed(2);$('procTau').value=rand(8,60).toFixed(1);$('procTheta').value=rand(2,15).toFixed(1);$('procNoise').value=rand(0.1,0.8).toFixed(2);resetSim();toast('Scrambled');}
+function toggleHideProc(){hideProc=!hideProc;['procKp','procTau','procTheta','procType'].forEach(id=>{$(id).style.filter=hideProc?'blur(4px)':'none';});$('hideBtn').textContent=hideProc?'👁 Show':'👁 Hide';}
+function applyLoopPreset(){const key=$('loopType').value;const p=LOOP_PRESETS[key];if(!p)return;$('procKp').value=p.proc.Kp.toFixed(2);$('procTau').value=p.proc.tau.toFixed(1);$('procTheta').value=p.proc.theta.toFixed(1);$('procNoise').value=p.proc.noise.toFixed(2);$('Kc').value=p.pid.Kc.toFixed(3);$('Ti').value=p.pid.Ti.toFixed(1);$('Td').value=p.pid.Td.toFixed(1);$('alpha').value=p.pid.alpha.toFixed(2);$('loopTag').value=p.tag;$('loopDesc').textContent=p.desc;$('spUnit').textContent=p.unit;$('pvUnit').textContent=p.unit;toast(key+' — '+p.desc,'#1565c0');resetSim();lastTuning={Kc:p.pid.Kc,Ti:p.pid.Ti,Td:p.pid.Td,alpha:p.pid.alpha};livePropose();}
+function freezeBaseline(){if(history.length<20){toast('Not enough data','#7a1f1f');return;}baseline={history:history.slice(),kpi:{iae,osh,settle:settleTime,osc:oscIndex}};toast('📌 Baseline');}
+function refreshSavedList(){const s=JSON.parse(localStorage.getItem('pid_v248_tunes')||'[]');const div=$('savedList');if(!s.length){div.innerHTML='<span style="color:#555;font-style:italic">(none)</span>';return;}div.innerHTML=s.slice(-5).reverse().map(x=>'<div style="padding:2px 0;font-family:Consolas;font-size:10px"><b style="color:#4fc3f7">'+x.name+'</b><br>Kp='+x.Kp.toFixed(2)+', Ti='+x.Ti.toFixed(1)+'s</div>').join('');}
+function saveTune(){const s=JSON.parse(localStorage.getItem('pid_v248_tunes')||'[]');const ts=formatTimestamp(t);const name=prompt('Name?','Tune '+ts);if(!name)return;s.push({name,Kp:num('Kc'),Ti:num('Ti'),Td:num('Td'),alpha:num('alpha',0.1),timestamp:ts});localStorage.setItem('pid_v248_tunes',JSON.stringify(s));refreshSavedList();toast('Saved');}
+function loadTune(){const s=JSON.parse(localStorage.getItem('pid_v248_tunes')||'[]');if(!s.length){toast('None','#7a1f1f');return;}const names=s.map((x,i)=>(i+1)+'. '+x.name).join('\n');const i=parseInt(prompt('Load?\n\n'+names,'1'))-1;if(isNaN(i)||!s[i])return;const cp={Kp:num('Kc',1),Ti:num('Ti',20),Td:num('Td',0),alpha:num('alpha',0.1)};previousTuning=cp;$('KcPrev').value=cp.Kp.toFixed(3);$('TiPrev').value=cp.Ti.toFixed(2);$('TdPrev').value=cp.Td.toFixed(2);$('alphaPrev').value=cp.alpha.toFixed(2);['KcPrev','TiPrev','TdPrev','alphaPrev'].forEach(id=>$(id).classList.remove('empty'));$('Kc').value=s[i].Kp;$('Ti').value=s[i].Ti;$('Td').value=s[i].Td;$('alpha').value=s[i].alpha;toast('Loaded');}
+function exportCSV(){if(!history.length){toast('No data','#7a1f1f');return;}const csv=historyToCSV(history);const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=$('loopTag').value+'_'+formatTimestamp(t).replace(/[: ]/g,'-')+'.csv';a.click();toast('Exported');}
+function historyToCSV(hist){let csv='Timestamp,t_s,SP,PV,CV,CV_fb\n';hist.forEach(h=>{csv+=formatTimestamp(h.t)+','+h.t.toFixed(2)+','+h.sp.toFixed(3)+','+h.pv.toFixed(3)+','+h.op.toFixed(3)+','+(h.cvFb||0).toFixed(3)+'\n';});return csv;}
+let pendingImport=null;
+function openImportModal(){$('importModal').classList.add('show');$('importStatus').textContent='Waiting...';$('importStatus').className='status';$('applyImportBtn').disabled=true;pendingImport=null;}
+function closeImportModal(){$('importModal').classList.remove('show');}
+function handleImportFile(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{const text=ev.target.result;const lines=text.split(/\r?\n/).filter(l=>l.trim());if(lines.length<2)throw new Error('Empty');const header=lines[0].split(',').map(h=>h.trim());const idxT=header.findIndex(h=>/^t_?s/i.test(h));const idxSP=header.findIndex(h=>/^SP$/i.test(h));const idxPV=header.findIndex(h=>/^PV$/i.test(h));const idxCV=header.findIndex(h=>/^CV$|OP/i.test(h));if(idxSP<0||idxPV<0)throw new Error('Missing SP/PV');const data=[];for(let i=1;i<lines.length;i++){const cols=lines[i].split(',');const row={t:idxT>=0?parseFloat(cols[idxT]):i*0.5,sp:parseFloat(cols[idxSP]),pv:parseFloat(cols[idxPV]),op:idxCV>=0?parseFloat(cols[idxCV]):50,cvFb:idxCV>=0?parseFloat(cols[idxCV]):50,dist:0,cvCmd:idxCV>=0?parseFloat(cols[idxCV]):50,err:parseFloat(cols[idxSP])-parseFloat(cols[idxPV]),P:0,I:0,D:0};if(isFinite(row.pv)&&isFinite(row.sp))data.push(row);}pendingImport=data;$('importStatus').textContent='✓ '+data.length+' rows';$('importStatus').className='status ok';$('applyImportBtn').disabled=false;}catch(err){$('importStatus').textContent='❌ '+err.message;$('importStatus').className='status error';}};reader.readAsText(file);}
+function applyImport(){if(!pendingImport)return;history=[...pendingImport];if(history.length>0){const last=history[history.length-1];pvOut=last.pv;spVal=last.sp;spCommitted=last.sp;opVal=last.op;actuatorPos=last.cvFb;t=last.t;}closeImportModal();drawAll();updateStatsBars();toast('✓ Imported','#1b5e20');}
+function updateFaceplate(){$('spDisp').textContent=spVal.toFixed(2);$('pvDisp').textContent=pvOut.toFixed(2);$('opDisp').textContent=opVal.toFixed(2);const opMin=num('opMin',0),opMax=num('opMax',100);$('opBar').style.width=Math.max(0,Math.min(100,((opVal-opMin)/(opMax-opMin))*100))+'%';}
+function updateSnap(){const set=(id,v,c)=>{const el=$(id);el.querySelector('.v').textContent=v;el.className='cell '+c;};set('k_iae',iae.toFixed(0),iae<50?'ok':iae<200?'warn':'bad');set('k_osh',osh.toFixed(1)+' %',osh<10?'ok':osh<25?'warn':'bad');set('k_settle',settleTime===null?'— s':settleTime.toFixed(1)+' s',settleTime===null?'idle':'ok');set('k_osc',oscIndex.toFixed(2),oscIndex<0.05?'ok':oscIndex<0.15?'warn':'bad');const st=parseInt($('procStiction').value)||0;set('k_valve',['OK','Mild','Moderate','Severe','Extreme'][st]||'OK',st===0?'ok':'warn');let s='Tracking',c='ok';if(osh>25){s='High Overshoot';c='bad';}if(!running&&t===0){s='Idle';c='idle';}if(autoSeqRunning){s='Auto Seq';c='warn';}if(dataCaptureActive){s='REC';c='bad';}set('k_status',s,c);}
+const plotScales={},plotCursor={};
+const PLOT_CONFIG={
+  plotSPPV:{series:[{key:'sp',color:'#ff5252',dash:[5,4],label:'SP'},{key:'pv',color:'#7CFC00',label:'PV'}],minRange:4},
+  plotPID:{series:[{key:'P',color:'#66bb6a',label:'P'},{key:'I',color:'#42a5f5',label:'I'},{key:'D',color:'#ef5350',dash:[4,3],label:'D'}],minRange:5},
+  plotErr:{series:[{key:'err',color:'#ff4081',dash:[5,3],label:'Error'}],minRange:4},
+  plotOP:{series:[{key:'cvCmd',color:'#42a5f5',label:'CV cmd'},{key:'cvFb',color:'#7CFC00',dash:[4,2],label:'CV fb'}],minRange:10}
+};
+function drawMini(id){const cfg=PLOT_CONFIG[id];if(!cfg)return;const c=$(id);if(!c)return;const ctx=c.getContext('2d');const r=c.getBoundingClientRect();c.width=Math.max(50,r.width*devicePixelRatio);c.height=Math.max(50,r.height*devicePixelRatio);ctx.setTransform(1,0,0,1,0,0);ctx.scale(devicePixelRatio,devicePixelRatio);const W=r.width,H=r.height,mB=18,pH=H-mB;ctx.clearRect(0,0,W,H);ctx.strokeStyle='#1e1e1e';ctx.beginPath();for(let i=0;i<=4;i++){ctx.moveTo(0,pH*i/4);ctx.lineTo(W,pH*i/4);}for(let i=0;i<=6;i++){ctx.moveTo(W*i/6,0);ctx.lineTo(W*i/6,pH);}ctx.stroke();if(!history.length){plotScales[id]=null;return;}const series=cfg.series;const tMin=history[0].t,tMax=history[history.length-1].t,tSpan=Math.max(1,tMax-tMin);let yMin=Infinity,yMax=-Infinity;series.forEach(s=>history.forEach(h=>{const v=h[s.key];if(isFinite(v)){yMin=Math.min(yMin,v);yMax=Math.max(yMax,v);}}));if(!isFinite(yMin)){yMin=-1;yMax=1;}const mR=cfg.minRange||0.5;if((yMax-yMin)<mR){const mid=(yMax+yMin)/2;yMin=mid-mR/2;yMax=mid+mR/2;}const pad=Math.max(0.5,(yMax-yMin)*0.15);yMin-=pad;yMax+=pad;const yS=Math.max(0.01,yMax-yMin);plotScales[id]={W,H:pH,tMin,tMax,tSpan,yMin,yMax,ySpan:yS,series};ctx.fillStyle='#666';ctx.font='9px Consolas';ctx.textAlign='left';for(let i=0;i<=4;i++)ctx.fillText((yMax-yS*i/4).toFixed(1),2,pH*i/4+10);series.forEach(s=>{ctx.strokeStyle=s.color;ctx.lineWidth=1.6;ctx.setLineDash(s.dash||[]);ctx.beginPath();let st=false;history.forEach(h=>{const v=h[s.key];if(!isFinite(v))return;const x=((h.t-tMin)/tSpan)*W;const y=pH*(1-(v-yMin)/yS);if(!st){ctx.moveTo(x,y);st=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);});ctx.strokeStyle='#444';ctx.beginPath();ctx.moveTo(0,pH);ctx.lineTo(W,pH);ctx.stroke();ctx.fillStyle='#8ec5ff';ctx.font='8.5px Consolas';ctx.textAlign='center';for(let i=0;i<=5;i++){const tv=tMin+(tSpan*i/5),x=W*i/5;ctx.fillText(formatTimestampShort(tv),x,pH+13);}ctx.font='9.5px Consolas';ctx.textAlign='left';let lx=W-6;series.slice().reverse().forEach(s=>{const w=ctx.measureText(s.label).width+16;lx-=w;ctx.fillStyle=s.color;ctx.fillRect(lx,8,10,2);ctx.fillStyle='#ccc';ctx.fillText(s.label,lx+13,12);});const cur=plotCursor[id];if(cur&&cur.active){const cx=((cur.time-tMin)/tSpan)*W;if(cx>=0&&cx<=W){ctx.strokeStyle='#ffb300';ctx.setLineDash([4,3]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,pH);ctx.stroke();ctx.setLineDash([]);series.forEach(s=>{let lo=0,hi=history.length-1;while(lo<hi){const m=(lo+hi)>>1;if(history[m].t<cur.time)lo=m+1;else hi=m;}const v=history[lo][s.key];if(!isFinite(v))return;const y=pH*(1-(v-yMin)/yS);ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(cx,y,3.5,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();});}}}
+function drawAll(){Object.keys(PLOT_CONFIG).forEach(drawMini);}
+function updateStatsBars(){Object.keys(PLOT_CONFIG).forEach(id=>{const cfg=PLOT_CONFIG[id];const bar=$('stats'+id.replace('plot',''));if(!bar)return;let html='<div class="stats-header"><div></div><div class="lbl">Actual</div><div class="lbl">Avg</div><div class="lbl">Cursor</div><div class="lbl">Min</div><div class="lbl">Max</div></div>';if(!history.length){cfg.series.forEach(s=>{html+='<div class="stats-row"><div class="series-name" style="color:'+s.color+'">'+s.label+'</div><span class="val">—</span><span class="val">—</span><span class="val">—</span><span class="val">—</span><span class="val">—</span></div>';});bar.innerHTML=html;return;}const cur=plotCursor[id];cfg.series.forEach(s=>{const values=history.map(h=>h[s.key]).filter(v=>isFinite(v));if(!values.length){html+='<div class="stats-row"><div class="series-name" style="color:'+s.color+'">'+s.label+'</div><span class="val">—</span><span class="val">—</span><span class="val">—</span><span class="val">—</span><span class="val">—</span></div>';return;}const nV=history[history.length-1][s.key];const avg=values.reduce((a,b)=>a+b,0)/values.length;const mn=Math.min(...values),mx=Math.max(...values);let cV='—';if(cur&&cur.active){let lo=0,hi=history.length-1;while(lo<hi){const m=(lo+hi)>>1;if(history[m].t<cur.time)lo=m+1;else hi=m;}if(isFinite(history[lo][s.key]))cV=history[lo][s.key].toFixed(2);}html+='<div class="stats-row"><div class="series-name" style="color:'+s.color+'">'+s.label+'</div><span class="val">'+(isFinite(nV)?nV.toFixed(2):'—')+'</span><span class="val">'+avg.toFixed(2)+'</span><span class="val">'+cV+'</span><span class="val">'+mn.toFixed(2)+'</span><span class="val">'+mx.toFixed(2)+'</span></div>';});bar.innerHTML=html;});}
+function initPlotTooltips(){const tt=$('plotTooltip');document.querySelectorAll('.mini').forEach(mini=>{const cid=mini.dataset.plot;const canvas=mini.querySelector('canvas');canvas.addEventListener('mousemove',e=>{const scale=plotScales[cid];if(!scale){tt.classList.remove('show');return;}const rect=canvas.getBoundingClientRect();const px=e.clientX-rect.left;const tAC=scale.tMin+(px/scale.W)*scale.tSpan;plotCursor[cid]={active:true,time:tAC};requestAnimationFrame(()=>{drawMini(cid);updateStatsBars();});});canvas.addEventListener('mouseleave',()=>{tt.classList.remove('show');plotCursor[cid]={active:false};requestAnimationFrame(()=>{drawMini(cid);updateStatsBars();});});});}
+function onDistTypeChange(){distActualHistory=[];drawDistPreview();}
+function drawDistPreview(){const c=$('distPreview');if(!c)return;const r=c.getBoundingClientRect();c.width=Math.max(50,r.width*devicePixelRatio);c.height=Math.max(30,r.height*devicePixelRatio);const ctx=c.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.scale(devicePixelRatio,devicePixelRatio);const W=r.width,H=r.height;ctx.clearRect(0,0,W,H);const animT=(performance.now()-distAnimStart)/1000;const type=$('distType').value;const A=num('distAmp',0),P=Math.max(0.1,num('distPeriod',60)),off=num('distOffset',0);let curV=0;if(type!=='none'){if(type==='constant')curV=A;else if(type==='sinusoidal')curV=A*Math.sin(2*Math.PI*animT/P);else if(type==='sawtooth')curV=A*(2*((animT%P)/P)-1);else if(type==='square')curV=A*(Math.sin(2*Math.PI*animT/P)>=0?1:-1);else if(type==='random'){distRandomWalk+=-0.025*distRandomWalk+A*0.3*(Math.random()-0.5);distRandomWalk=Math.max(-A*2,Math.min(A*2,distRandomWalk));curV=distRandomWalk;}curV+=off;}distActualHistory.push({t:animT,v:curV});while(distActualHistory.length&&(animT-distActualHistory[0].t)>DIST_HISTORY_SEC)distActualHistory.shift();$('distLiveBadge').textContent='LIVE='+curV.toFixed(2);if(type==='none'){$('distPreviewLbl').textContent='Disabled';return;}$('distPreviewLbl').textContent=type+' (5s)';const yScale=Math.max(1,Math.abs(A)+Math.abs(off)+num('pulseMag',15)*0.3+1);ctx.strokeStyle='rgba(255,152,0,0.30)';ctx.lineWidth=1.3;ctx.beginPath();for(let i=0;i<=W;i++){const tp=(i/W)*Math.min(P*3,DIST_HISTORY_SEC*3);let v=0;if(type==='sinusoidal')v=A*Math.sin(2*Math.PI*tp/P);else if(type==='sawtooth')v=A*(2*((tp%P)/P)-1);else if(type==='square')v=A*(Math.sin(2*Math.PI*tp/P)>=0?1:-1);else if(type==='constant')v=A;v+=off;const y=H/2-(v/yScale)*(H/2-3);if(i===0)ctx.moveTo(i,y);else ctx.lineTo(i,y);}ctx.stroke();if(distActualHistory.length>1){const t0=distActualHistory[0].t,tN=distActualHistory[distActualHistory.length-1].t;const span=Math.max(0.1,tN-t0);ctx.strokeStyle='#ff9800';ctx.lineWidth=1.8;ctx.beginPath();let st=false;distActualHistory.forEach(pt=>{const x=((pt.t-t0)/span)*W;const y=H/2-(pt.v/yScale)*(H/2-3);if(!st){ctx.moveTo(x,y);st=true;}else ctx.lineTo(x,y);});ctx.stroke();const yLive=H/2-(curV/yScale)*(H/2-3);ctx.fillStyle='#ff9800';ctx.beginPath();ctx.arc(W-3,yLive,3.5,0,Math.PI*2);ctx.fill();}}
+// ============ AUTO SEQUENCE — 3 MODES ============
+async function waitForStability(stepStartT,targetSP,band,stableTimeReq,timeoutSec){
+  const startWall=performance.now();
+  let stableStart=null,osh=0,riseT=null,settleT=null,iaeAccum=0,lastT=t;
+  const initialPV=pvOut;const dir=Math.sign(targetSP-initialPV);let extremePV=initialPV;
+  return new Promise((resolve)=>{
+    const check=()=>{
+      if(autoSeqAbort){resolve({success:false,aborted:true,overshoot:osh,rise:riseT,settle:null,iae:iaeAccum,reason:'aborted'});return;}
+      const wallElapsed=(performance.now()-startWall)/1000;
+      if(wallElapsed>=timeoutSec){resolve({success:false,timeout:true,overshoot:osh,rise:riseT,settle:null,iae:iaeAccum,reason:'timeout'});return;}
+      if(t>lastT){
+        const dt=t-lastT;
+        iaeAccum+=Math.abs(targetSP-pvOut)*dt;
+        if(dir>0)extremePV=Math.max(extremePV,pvOut);else extremePV=Math.min(extremePV,pvOut);
+        const span=Math.abs(targetSP-initialPV);
+        if(span>0.5){const ov=dir*(extremePV-targetSP);osh=Math.max(0,(ov/span)*100);}
+        if(riseT===null&&dir*(pvOut-targetSP)>=0)riseT=t-stepStartT;
+        lastT=t;
+      }
+      const err=Math.abs(pvOut-targetSP);
+      const bandVal=Math.max(0.2,band);
+      if(err<=bandVal){
+        if(stableStart===null)stableStart=t;
+        else if(t-stableStart>=stableTimeReq){settleT=stableStart-stepStartT;resolve({success:true,overshoot:osh,rise:riseT,settle:settleT,iae:iaeAccum,reason:'stable'});return;}
+      }else stableStart=null;
+      setTimeout(check,100);
+    };check();
+  });
+}
+async function waitForPVStable(pvStart,stableTimeReq,timeoutSec){
+  const startWall=performance.now();
+  let stableStart=null,lastPV=pvStart;
+  return new Promise((resolve)=>{
+    const check=()=>{
+      if(autoSeqAbort){resolve({success:false,aborted:true});return;}
+      const wallElapsed=(performance.now()-startWall)/1000;
+      if(wallElapsed>=timeoutSec){resolve({success:false,timeout:true,finalPV:pvOut});return;}
+      const dPV=Math.abs(pvOut-lastPV);lastPV=pvOut;
+      if(dPV<0.05){if(stableStart===null)stableStart=t;else if(t-stableStart>=stableTimeReq){resolve({success:true,finalPV:pvOut});return;}}
+      else stableStart=null;
+      setTimeout(check,100);
+    };check();
+  });
+}
+function renderProgressSteps(steps){const html=steps.map((s,i)=>'<div class="step" id="asp_'+i+'">'+s+'</div>').join('');$('aspSteps').innerHTML=html;}
+function updateStep(idx,text,color){const el=$('asp_'+idx);if(el){el.textContent=text;el.style.color=color;el.style.fontWeight=color==='var(--muted)'?'normal':'bold';}}
+async function runVerifyMode(){
+  autoSeqResults=[];
+  if(mode==='MAN')toggleMode();if(!running)toggleRun();
+  const initialSP=spCommitted;const stepSize=num('stStepSize',5);const timeoutSec=num('stTimeout',300);const band=num('stStabBand',1.0);const stableTime=num('stStableTime',2.0);
+  const sequence=[{label:'1. ↑ Step Up',target:initialSP+stepSize},{label:'2. ↓ Step Down (return)',target:initialSP},{label:'3. ↓ Step Down',target:initialSP-stepSize},{label:'4. ↑ Step Up (return)',target:initialSP}];
+  renderProgressSteps(sequence.map(s=>'⏳ '+s.label));
+  for(let i=0;i<sequence.length;i++){
+    if(autoSeqAbort)break;
+    const step=sequence[i];
+    updateStep(i,'⏱ '+step.label+' (running...)','var(--warn)');
+    $('autoSeqIndicator').innerHTML='🧪 <b>Verify Step '+(i+1)+'/4:</b> '+step.label+'<br>Target SP = '+step.target.toFixed(1);
+    spCommitted=step.target;$('spInput').value=step.target.toFixed(1);
+    const stepStartT=t;stepStartTime=t;stepStartPV=pvOut;stepStartSP=step.target;pvMax=pvOut;settleTime=null;
+    const result=await waitForStability(stepStartT,step.target,band,stableTime,timeoutSec);
+    result.stepNum=i+1;result.label=step.label;result.targetSP=step.target;
+    result.direction=step.target>(i===0?initialSP:sequence[i-1].target)?'↑':'↓';
+    autoSeqResults.push(result);
+    if(result.success)updateStep(i,'✓ '+step.label+' — settled in '+result.settle.toFixed(1)+'s','var(--ok)');
+    else{updateStep(i,'✗ '+step.label+' — '+(result.timeout?'TIMEOUT':'aborted'),'var(--bad)');if(result.aborted)break;}
+  }
+  return {mode:'verify',results:autoSeqResults};
+}
+async function runIdentifyMode(){
+  stepTestSegments=[];
+  if(mode==='AUTO')toggleMode();if(!running)toggleRun();
+  const baseOP=num('stBaseOP',50);const step=num('stStepSize',5);const timeoutSec=num('stTimeout',300);const stableTime=num('stStableTime',2.0);
+  const opMin=num('opMin',0),opMax=num('opMax',100);
+  if(baseOP+2*step>opMax||baseOP-2*step<opMin){toast('⚠ Steps exceed OP limits','#7a1f1f');return {mode:'identify',results:[],error:'limits'};}
+  const seq=[{label:'Bump ramp to base',op:baseOP},{label:'Baseline',op:baseOP},{label:'↑ Up #1',op:baseOP+step},{label:'↑ Up #2',op:baseOP+2*step},{label:'↓ Down #1',op:baseOP+step},{label:'↓ Down #2',op:baseOP},{label:'↓ Down #3',op:baseOP-step},{label:'↓ Down #4',op:baseOP-2*step},{label:'↑ Up #3',op:baseOP-step},{label:'↑ Up #4 → base',op:baseOP}];
+  renderProgressSteps(seq.map(s=>'⏳ '+s.label));
+  let prevOp=opCommitted;
+  for(let i=0;i<seq.length;i++){
+    if(autoSeqAbort)break;
+    const s=seq[i];
+    updateStep(i,'⏱ '+s.label+' (OP='+s.op.toFixed(1)+'%, waiting stable...)','var(--warn)');
+    $('autoSeqIndicator').innerHTML='🔬 <b>Identify Step '+(i+1)+'/'+seq.length+':</b> '+s.label+'<br>Target OP = '+s.op.toFixed(1);
+    const pvStart=pvOut;opCommitted=s.op;$('opInput').value=s.op.toFixed(1);
+    const res=await waitForPVStable(pvStart,stableTime,timeoutSec);
+    if(res.aborted)break;
+    if(i>0)stepTestSegments.push({op:s.op,prevOp:prevOp,dOP:s.op-prevOp,pvStart:pvStart,pvEnd:pvOut});
+    prevOp=s.op;
+    if(res.success)updateStep(i,'✓ '+s.label+' — PV='+pvOut.toFixed(2),'var(--ok)');
+    else updateStep(i,'⚠ '+s.label+' — timeout, PV='+pvOut.toFixed(2),'var(--warn)');
+  }
+  const kpEst=[];
+  for(const s of stepTestSegments){if(Math.abs(s.dOP)<0.5)continue;const kp=(s.pvEnd-s.pvStart)/s.dOP;if(isFinite(kp)&&Math.abs(kp)<50)kpEst.push(kp);}
+  let fittedKp=num('procKp',1);
+  if(kpEst.length){const sorted=[...kpEst].sort((a,b)=>a-b);fittedKp=Math.abs(sorted[Math.floor(sorted.length/2)]);$('procKp').value=fittedKp.toFixed(3);}
+  const tune=computeAutoTune();
+  if(tune)setProposal(tune,'Auto-Fit + SIMC ('+controlObjective+', λ='+tune.lambda.toFixed(1)+'s)');
+  toast('✓ Model fit: Kp='+fittedKp.toFixed(2),'#1565c0');
+  if(mode==='MAN')toggleMode();
+  return {mode:'identify',results:stepTestSegments,fittedKp,tune};
+}
+async function runAutoSequence(){
+  if(autoSeqRunning){toast('Already running','#7a1f1f');return;}
+  const selectedMode=$('autoSeqMode').value;
+  autoSeqRunning=true;autoSeqAbort=false;$('autoSeqBtn').disabled=true;
+  $('autoSeqProg').style.display='block';$('autoSeqIndicator').classList.add('show');
+  let finalResult=null;
+  try{
+    if(selectedMode==='verify')finalResult=await runVerifyMode();
+    else if(selectedMode==='identify')finalResult=await runIdentifyMode();
+    else if(selectedMode==='both'){
+      $('autoSeqIndicator').innerHTML='<b>PHASE 1/3:</b> Identifying process...';
+      const identifyResult=await runIdentifyMode();
+      if(autoSeqAbort||identifyResult.error){finalResult=identifyResult;}
+      else{
+        $('autoSeqIndicator').innerHTML='<b>PHASE 2/3:</b> Applying tuning...';
+        await new Promise(r=>setTimeout(r,1000));
+        if(proposal){
+          previousTuning={Kp:num('Kc',1),Ti:num('Ti',20),Td:num('Td',0),alpha:num('alpha',0.1)};
+          $('KcPrev').value=previousTuning.Kp.toFixed(3);$('TiPrev').value=previousTuning.Ti.toFixed(2);$('TdPrev').value=previousTuning.Td.toFixed(2);$('alphaPrev').value=previousTuning.alpha.toFixed(2);
+          ['KcPrev','TiPrev','TdPrev','alphaPrev'].forEach(id=>$(id).classList.remove('empty'));
+          $('Kc').value=(proposal.Kp||proposal.Kc||1).toFixed(3);$('Ti').value=proposal.Ti.toFixed(2);$('Td').value=proposal.Td.toFixed(2);$('alpha').value=proposal.alpha.toFixed(2);
+          clearProposal();$('revertBtn').disabled=false;toast('✓ Tuning applied');
+        }
+        $('autoSeqIndicator').innerHTML='<b>PHASE 3/3:</b> Verifying new tuning...';
+        await new Promise(r=>setTimeout(r,500));
+        const verifyResult=await runVerifyMode();
+        finalResult={mode:'both',identify:identifyResult,verify:verifyResult};
+      }
+    }
+  }catch(e){console.error(e);toast('Error: '+e.message,'#7a1f1f');}
+  autoSeqRunning=false;autoSeqAbort=false;$('autoSeqBtn').disabled=false;$('autoSeqIndicator').classList.remove('show');
+  setTimeout(()=>{$('autoSeqProg').style.display='none';},3000);
+  if(dataCaptureActive&&finalResult)dataCaptureBuffer.autoSeqResults.push({timestamp:formatTimestamp(t),mode:selectedMode,result:finalResult});
+  showAutoSeqResults(finalResult,selectedMode);
+}
+function stopAutoSequence(){if(autoSeqRunning){autoSeqAbort=true;toast('Auto Seq aborting...','#7a1f1f');}}
+// Damping-based recommendations
+function estimateDampingFromOvershoot(overshootPct){
+  if(overshootPct<=0.1)return 1.0;
+  const os=Math.min(0.99,overshootPct/100);const lnOS=Math.log(os);
+  const zeta=-lnOS/Math.sqrt(Math.PI*Math.PI+lnOS*lnOS);
+  return Math.max(0.05,Math.min(1.5,zeta));
+}
+function computeRecommendedTuning(measuredOvershoot,measuredSettle){
+  const Kp_p=num('procKp',1),tau=num('procTau',20),th=Math.max(0.1,num('procTheta',5));
+  const curKp=num('Kc',1),curTi=num('Ti',20),curTd=num('Td',0);
+  const zetaObserved=estimateDampingFromOvershoot(measuredOvershoot);const zetaTarget=0.7;
+  const zetaRatio=zetaTarget/Math.max(0.1,zetaObserved);
+  const currentEffectiveLambda=Math.max(th,tau/(curKp*Kp_p)-th);
+  const newLambda=Math.max(0.5*th,currentEffectiveLambda*zetaRatio*zetaRatio);
+  let newKp=tau/(Kp_p*(newLambda+th));
+  const tauThetaRatio=tau/th;const isLagDominant=tauThetaRatio>LAG_DOMINANT_RATIO;
+  let newTi;if(isLagDominant)newTi=4*(newLambda+th);else newTi=Math.min(tau,4*(newLambda+th));
+  let newTd=curTd;
+  newKp=Math.min(Math.max(Math.abs(newKp),KP_MIN),KP_MAX);newTi=Math.max(newTi,TI_MIN);
+  return {Kp:newKp,Ti:newTi,Td:newTd,alpha:num('alpha',0.1),zetaObserved,zetaTarget,lambdaOld:currentEffectiveLambda,lambdaNew:newLambda,curKp,curTi,curTd};
+}
+function applyRecommendedTuning(){
+  if(!recommendedTuning)return;
+  setProposal({Kp:recommendedTuning.Kp,Kc:recommendedTuning.Kp,Ti:recommendedTuning.Ti,Td:recommendedTuning.Td,alpha:recommendedTuning.alpha,type:recommendedTuning.Td>0?'PID':'PI',simcVariant:'auto-recommended',tauThetaRatio:num('procTau',20)/num('procTheta',5)},'Auto-Recommended from ζ analysis');
+  closeAutoSeqModal();toast('✓ Recommended tuning → Proposed','#1b5e20');
+}
+function showAutoSeqResults(finalResult,selectedMode){
+  if(!finalResult)return;let html='';recommendedTuning=null;$('applyRecBtn').style.display='none';
+  const verifyResults=selectedMode==='both'?(finalResult.verify?finalResult.verify.results:[]):(selectedMode==='verify'?finalResult.results:[]);
+  const identifyResults=selectedMode==='both'?(finalResult.identify?finalResult.identify.results:[]):(selectedMode==='identify'?finalResult.results:[]);
+  if(verifyResults.length>0){
+    const successful=verifyResults.filter(r=>r.success);const failed=verifyResults.filter(r=>!r.success);
+    const avgOvershoot=successful.length?successful.reduce((a,r)=>a+(r.overshoot||0),0)/successful.length:0;
+    const maxOvershoot=successful.length?Math.max(...successful.map(r=>r.overshoot||0)):0;
+    const avgSettle=successful.length?successful.reduce((a,r)=>a+(r.settle||0),0)/successful.length:0;
+    const totalIAE=verifyResults.reduce((a,r)=>a+(r.iae||0),0);const tau=num('procTau',20);
+    let verdict,verdictClass,verdictSubtitle;const recommendations=[];
+    if(failed.length>0){verdict='🔴 POOR';verdictClass='poor';verdictSubtitle=failed.length+' of '+verifyResults.length+' step(s) failed';recommendations.push('Increase timeout or reduce step size');recommendations.push('Loop may be too sluggish');}
+    else if(maxOvershoot>25||avgSettle>8*tau){verdict='🔴 POOR';verdictClass='poor';verdictSubtitle='High overshoot or very slow settling';if(maxOvershoot>25)recommendations.push('Overshoot >25%: reduce Kp or increase Ti');if(avgSettle>8*tau)recommendations.push('Slow settling: try more Aggressive objective');}
+    else if(maxOvershoot>15||avgSettle>5*tau){verdict='🟡 FAIR';verdictClass='fair';verdictSubtitle='Acceptable but could be improved';if(maxOvershoot>15)recommendations.push('Slight decrease of Kp or increase Ti');recommendations.push('Current tuning is usable but not optimal');}
+    else{verdict='🟢 GOOD';verdictClass='good';verdictSubtitle='Excellent tuning performance';recommendations.push('Overshoot <15%, settle <5τ — meets standards');recommendations.push('This tuning is production-ready');}
+    html+='<div class="verdict-big '+verdictClass+'">'+verdict+'<div class="subtitle">'+verdictSubtitle+'</div></div>';
+    html+=selectedMode==='both'?'<h2>🔬 Verify Phase Results</h2>':'<h2>📊 Per-Step Results</h2>';
+    html+='<table><tr><th>#</th><th>Dir</th><th>Target SP</th><th>Overshoot %</th><th>Rise (s)</th><th>Settle (s)</th><th>IAE</th><th>Status</th></tr>';
+    verifyResults.forEach(r=>{const st=r.success?'<span style="color:var(--ok)">✓ Stable</span>':'<span style="color:var(--bad)">✗ '+(r.timeout?'Timeout':'Aborted')+'</span>';html+='<tr><td>'+r.stepNum+'</td><td>'+r.direction+'</td><td>'+r.targetSP.toFixed(1)+'</td><td>'+(r.overshoot||0).toFixed(1)+'</td><td>'+(r.rise!==null?r.rise.toFixed(1):'—')+'</td><td>'+(r.settle!==null?r.settle.toFixed(1):'—')+'</td><td>'+(r.iae||0).toFixed(1)+'</td><td>'+st+'</td></tr>';});
+    html+='</table><h2>🎯 Aggregate Metrics</h2>';
+    html+='<table><tr><th>Metric</th><th>Value</th><th>Criteria</th></tr>';
+    html+='<tr><td>Avg Overshoot</td><td>'+avgOvershoot.toFixed(1)+' %</td><td>&lt;8% good, &lt;15% fair</td></tr>';
+    html+='<tr><td>Max Overshoot</td><td>'+maxOvershoot.toFixed(1)+' %</td><td>Peak</td></tr>';
+    html+='<tr><td>Avg Settle</td><td>'+avgSettle.toFixed(1)+' s</td><td>&lt;3τ good (τ='+tau+'s)</td></tr>';
+    html+='<tr><td>Total IAE</td><td>'+totalIAE.toFixed(1)+'</td><td>Lower is better</td></tr>';
+    html+='</table>';
+    if(verdictClass!=='good'&&successful.length>=2){
+      const rec=computeRecommendedTuning(maxOvershoot,avgSettle);recommendedTuning=rec;
+      html+='<div class="rec-tune-box"><h3>💡 Recommended Tuning (from damping analysis)</h3>';
+      html+='<div style="font-size:11px;color:#a5d6a7;margin-bottom:8px">Damping ζ observed: <b>'+rec.zetaObserved.toFixed(3)+'</b> → target ζ: <b>'+rec.zetaTarget.toFixed(2)+'</b> (well-damped, ~5% overshoot)</div>';
+      html+='<table class="rec-tune-table"><tr><th>Param</th><th>Current</th><th>Recommended</th><th>Δ</th></tr>';
+      const rows=[['Kp',rec.curKp,rec.Kp],['Ti (s)',rec.curTi,rec.Ti],['Td (s)',rec.curTd,rec.Td]];
+      rows.forEach(r=>{const delta=r[2]-r[1];const deltaPct=r[1]>0.01?((delta/r[1])*100).toFixed(0)+'%':'—';html+='<tr><td>'+r[0]+'</td><td class="old">'+r[1].toFixed(3)+'</td><td class="new">'+r[2].toFixed(3)+'</td><td class="delta">'+(delta>=0?'+':'')+deltaPct+'</td></tr>';});
+      html+='</table><div class="reasoning">';
+      if(rec.zetaObserved<rec.zetaTarget)html+='<b>Reasoning:</b> Observed ζ ≈ '+rec.zetaObserved.toFixed(2)+' &lt; target 0.7 → too oscillatory. Increased λ from '+rec.lambdaOld.toFixed(1)+'s → '+rec.lambdaNew.toFixed(1)+'s to slow closed-loop response.';
+      else html+='<b>Reasoning:</b> Observed ζ ≈ '+rec.zetaObserved.toFixed(2)+' &gt; target 0.7 → over-damped. Decreased λ from '+rec.lambdaOld.toFixed(1)+'s → '+rec.lambdaNew.toFixed(1)+'s for faster response.';
+      html+='</div></div>';$('applyRecBtn').style.display='inline-block';
+    }
+    html+='<h2>📋 Recommendations</h2><div class="recommendations"><ul>';
+    recommendations.forEach(r=>{html+='<li>'+r+'</li>';});html+='</ul></div>';
+  }
+  if(identifyResults.length>0&&selectedMode!=='verify'){
+    html+='<h2>🔬 Identify Phase — Fitted Model</h2>';
+    html+='<div style="background:#0d1a2d;border-left:3px solid #4fc3f7;padding:8px 12px;font-size:12px;color:#ade;margin-bottom:10px">';
+    html+='Estimated <b>Kp = '+num('procKp',1).toFixed(3)+'</b> from '+identifyResults.length+' step segments.<br>';
+    html+='τ and θ kept from Plant Process Model (adjust manually if needed).<br>';
+    html+=selectedMode==='both'?'SIMC tuning was applied automatically and then verified.':'SIMC tuning is available in Proposed column.';
+    html+='</div><table><tr><th>Segment</th><th>OP prev</th><th>OP new</th><th>ΔOP</th><th>PV start</th><th>PV end</th><th>Kp est</th></tr>';
+    identifyResults.forEach((s,i)=>{const kpEst=Math.abs(s.dOP)>0.5?((s.pvEnd-s.pvStart)/s.dOP).toFixed(3):'—';html+='<tr><td>'+(i+1)+'</td><td>'+s.prevOp.toFixed(1)+'</td><td>'+s.op.toFixed(1)+'</td><td>'+s.dOP.toFixed(1)+'</td><td>'+s.pvStart.toFixed(2)+'</td><td>'+s.pvEnd.toFixed(2)+'</td><td>'+kpEst+'</td></tr>';});
+    html+='</table>';
+  }
+  html+='<div style="background:#0a0a0a;border-left:3px solid #4fc3f7;padding:8px 12px;font-size:11px;color:#8ec5ff;margin-top:14px"><b>Current PID:</b> Kp='+num('Kc',1).toFixed(2)+' · Ti='+num('Ti',20).toFixed(1)+'s · Td='+num('Td',0).toFixed(1)+'s</div>';
+  $('autoSeqContent').innerHTML=html;$('autoSeqModal').classList.add('show');
+}
+function closeAutoSeqModal(){$('autoSeqModal').classList.remove('show');}
+function downloadAutoSeqReport(){const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Auto Seq Report</title><style>body{font-family:Consolas;background:#1a1a1a;color:#e6e6e6;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:6px 10px}th{background:#333;color:#4fc3f7}h1,h2{color:#4fc3f7}.verdict-big{padding:20px;text-align:center;font-size:24px;font-weight:bold;border:2px solid;margin:14px 0}.good{color:#a5d6a7;background:#1b5e20;border-color:#66bb6a}.fair{color:#ffe0b2;background:#6d4c00;border-color:#ffb300}.poor{color:#ffcdd2;background:#7a1f1f;border-color:#ef5350}.rec-tune-box{background:#0d2a0d;border:2px solid #66bb6a;padding:14px;margin:14px 0}</style></head><body><h1>🧪 Auto Sequence Report</h1>'+$('autoSeqContent').innerHTML+'</body></html>';const b=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=$('loopTag').value+'_autoseq_'+formatTimestamp(t).replace(/[: ]/g,'-')+'.html';a.click();toast('Downloaded');}
+// ============ v2.24.8: ENHANCED REPORT WITH BOX PLOTS + HISTORY ============
+function drawBoxPlot(canvas,label,bs,as){
+  const ctx=canvas.getContext('2d');const r=canvas.getBoundingClientRect();
+  canvas.width=r.width*devicePixelRatio;canvas.height=r.height*devicePixelRatio;
+  ctx.setTransform(1,0,0,1,0,0);ctx.scale(devicePixelRatio,devicePixelRatio);
+  const W=r.width,H=r.height;ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);
+  if(!bs&&!as){ctx.fillStyle='#888';ctx.font='12px Consolas';ctx.textAlign='center';ctx.fillText('(no data)',W/2,H/2);return;}
+  const all=[];if(bs){all.push(bs.min,bs.max);}if(as){all.push(as.min,as.max);}
+  const yMin=Math.min(...all)-0.5,yMax=Math.max(...all)+0.5;const ySpan=Math.max(0.01,yMax-yMin);
+  const ay=y=>H-30-(y-yMin)/ySpan*(H-50);
+  ctx.strokeStyle='#222';ctx.setLineDash([2,2]);ctx.beginPath();
+  for(let i=0;i<=4;i++){ctx.moveTo(30,10+i*(H-40)/4);ctx.lineTo(W-10,10+i*(H-40)/4);}
+  ctx.stroke();ctx.setLineDash([]);
+  const cx1=W*0.3,cx2=W*0.7,boxw=W*0.15;
+  const drawOne=(cx,st,color,bg)=>{
+    if(!st)return;
+    ctx.fillStyle=bg;ctx.fillRect(cx-boxw/2,ay(st.q3),boxw,ay(st.q1)-ay(st.q3));
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(cx-boxw/2,ay(st.q3),boxw,ay(st.q1)-ay(st.q3));
+    ctx.beginPath();ctx.moveTo(cx-boxw/2,ay(st.med));ctx.lineTo(cx+boxw/2,ay(st.med));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,ay(st.min));ctx.lineTo(cx,ay(st.q1));ctx.moveTo(cx,ay(st.q3));ctx.lineTo(cx,ay(st.max));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-boxw/4,ay(st.min));ctx.lineTo(cx+boxw/4,ay(st.min));ctx.moveTo(cx-boxw/4,ay(st.max));ctx.lineTo(cx+boxw/4,ay(st.max));ctx.stroke();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx-4,ay(st.mean)-4);ctx.lineTo(cx+4,ay(st.mean)+4);ctx.moveTo(cx+4,ay(st.mean)-4);ctx.lineTo(cx-4,ay(st.mean)+4);ctx.stroke();
+  };
+  drawOne(cx1,bs,'#66bb6a','rgba(102,187,106,0.25)');drawOne(cx2,as,'#ffb300','rgba(255,179,0,0.25)');
+  ctx.fillStyle='#66bb6a';ctx.font='11px Consolas';ctx.textAlign='center';ctx.fillText('BEFORE',cx1,H-8);
+  ctx.fillStyle='#ffb300';ctx.fillText('AFTER',cx2,H-8);
+  ctx.fillStyle='#4fc3f7';ctx.font='bold 11px Consolas';ctx.textAlign='left';ctx.fillText(label,10,15);
+  ctx.fillStyle='#888';ctx.font='9px Consolas';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const v=yMax-(yMax-yMin)*i/4;ctx.fillText(v.toFixed(1),28,10+i*(H-40)/4+3);}
+}
+function fmtDelta(d,lb){if(!isFinite(d))return '—';const s=d>=0?'+':'';const cls=(lb?(d<-0.5?'better':d>0.5?'worse':''):(d>0.5?'better':d<-0.5?'worse':''));return '<span class="'+cls+'">'+s+d.toFixed(2)+'</span>';}
+function openReport(){
+  $('reportModal').classList.add('show');
+  const nowTs=formatTimestamp(t),startTs=formatTimestamp(0),loopTag=$('loopTag').value;
+  const persistedLog=JSON.parse(localStorage.getItem('pid_v248_tuning_log')||'[]');
+  let html='<h1>📑 PID Loop Tuning Report</h1>';
+  html+='<div style="background:#0d1a2d;border-left:3px solid #4fc3f7;padding:6px 10px;font-size:11px;color:#ade;margin-bottom:14px">';
+  html+='<b>Generated:</b> '+nowTs+'<br><b>Simulation window:</b> '+startTs+' → '+nowTs+' ('+t.toFixed(0)+' s elapsed)<br>';
+  html+='<b>Loop tag:</b> '+loopTag+' · <b>Method:</b> SIMC ('+controlObjective+') · <b>Author:</b> Patricio Inzunza | WGT<br>';
+  html+='<b>Tuning changes captured:</b> '+persistedLog.length;
+  html+='</div>';
+  const curKpi={iae,osh,osc:oscIndex,settle:settleTime};const bK=baseline?baseline.kpi:null;
+  html+='<h2>Current Performance KPIs</h2><table>';
+  html+='<tr><th>Metric</th><th>Baseline</th><th>Current</th><th>Δ</th></tr>';
+  html+='<tr><td class="metric">IAE ↓</td><td>'+(bK?bK.iae.toFixed(1):'—')+'</td><td>'+curKpi.iae.toFixed(1)+'</td><td>'+(bK?fmtDelta(curKpi.iae-bK.iae,true):'—')+'</td></tr>';
+  html+='<tr><td class="metric">Overshoot % ↓</td><td>'+(bK?bK.osh.toFixed(1):'—')+'</td><td>'+curKpi.osh.toFixed(1)+'</td><td>'+(bK?fmtDelta(curKpi.osh-bK.osh,true):'—')+'</td></tr>';
+  html+='<tr><td class="metric">Oscillation Index ↓</td><td>'+(bK?bK.osc.toFixed(3):'—')+'</td><td>'+curKpi.osc.toFixed(3)+'</td><td>'+(bK?fmtDelta(curKpi.osc-bK.osc,true):'—')+'</td></tr>';
+  html+='<tr><td class="metric">Settle time ↓</td><td>'+(bK?(bK.settle?bK.settle.toFixed(1)+' s':'—'):'—')+'</td><td>'+(curKpi.settle?curKpi.settle.toFixed(1)+' s':'—')+'</td><td>—</td></tr>';
+  html+='</table>';
+  if(persistedLog.length>0){
+    html+='<h2>📊 Tuning Changes History (last '+persistedLog.length+')</h2>';
+    html+='<div class="history-log">';
+    persistedLog.slice().reverse().forEach((entry,i)=>{
+      const idx=persistedLog.length-1-i;
+      html+='<div class="entry"><span class="ts">'+entry.timestamp+'</span>';
+      html+='<span class="desc">Kp: '+entry.oldTune.Kc.toFixed(2)+' → '+entry.newTune.Kc.toFixed(2)+' · Ti: '+entry.oldTune.Ti.toFixed(0)+'s → '+entry.newTune.Ti.toFixed(0)+'s';
+      if(entry.oldTune.Td!==entry.newTune.Td)html+=' · Td: '+entry.oldTune.Td.toFixed(1)+'s → '+entry.newTune.Td.toFixed(1)+'s';
+      html+='</span><span class="action" onclick="renderTuningChange('+idx+')">View</span></div>';
+    });
+    html+='</div><div id="tuningChangeDetail"></div>';
+  }else{
+    html+='<div class="no-baseline">ℹ No tuning changes captured yet. Change Kp/Ti/Td during running simulation to trigger auto-capture (60s before/after).</div>';
+  }
+  if(bK){
+    const iaeImprove=(bK.iae-curKpi.iae)/Math.max(0.1,bK.iae)*100;let verdict='',vclass='';
+    if(iaeImprove>10&&(curKpi.osh-bK.osh)<=0){verdict='✅ <b>Improvement detected.</b> IAE reduced by '+iaeImprove.toFixed(0)+'%, overshoot '+(curKpi.osh<=bK.osh?'reduced or stable':'increased')+'. Recommend keeping current tuning.';}
+    else if(iaeImprove<-10){verdict='⚠ <b>Degradation.</b> IAE worsened by '+(-iaeImprove).toFixed(0)+'%. Consider reverting to baseline.';vclass='bad';}
+    else{verdict='◯ Performance similar to baseline. Continue observing.';vclass='warn';}
+    html+='<div class="verdict '+vclass+'">'+verdict+'</div>';
+  }
+  $('rptContent').innerHTML=html;
+  if(dataCaptureActive)dataCaptureBuffer.reports.push({timestamp:formatTimestamp(t),html});
+}
+function renderTuningChange(idx){
+  const persistedLog=JSON.parse(localStorage.getItem('pid_v248_tuning_log')||'[]');
+  const entry=persistedLog[idx];if(!entry)return;
+  const detail=$('tuningChangeDetail');
+  const oshBefore=entry.beforeStats.overshoot||0,oshAfter=entry.afterStats.overshoot||0;
+  const iaeBefore=entry.beforeStats.iae||0,iaeAfter=entry.afterStats.iae||0;
+  let html='<h2>Selected Change · '+entry.timestamp+'</h2>';
+  html+='<table><tr><th>Parameter</th><th>Before</th><th>After</th></tr>';
+  html+='<tr><td class="metric">Kp</td><td>'+entry.oldTune.Kc.toFixed(3)+'</td><td>'+entry.newTune.Kc.toFixed(3)+'</td></tr>';
+  html+='<tr><td class="metric">Ti (s)</td><td>'+entry.oldTune.Ti.toFixed(1)+'</td><td>'+entry.newTune.Ti.toFixed(1)+'</td></tr>';
+  html+='<tr><td class="metric">Td (s)</td><td>'+entry.oldTune.Td.toFixed(2)+'</td><td>'+entry.newTune.Td.toFixed(2)+'</td></tr>';
+  html+='<tr><td class="metric">α</td><td>'+entry.oldTune.alpha.toFixed(2)+'</td><td>'+entry.newTune.alpha.toFixed(2)+'</td></tr>';
+  html+='</table>';
+  html+='<h2>Statistical Analysis (60s before / 60s after)</h2>';
+  html+='<table><tr><th>Metric</th><th>Before</th><th>After</th><th>Δ</th></tr>';
+  html+='<tr><td class="metric">Overshoot % ↓</td><td>'+oshBefore.toFixed(1)+'</td><td>'+oshAfter.toFixed(1)+'</td><td>'+fmtDelta(oshAfter-oshBefore,true)+'</td></tr>';
+  html+='<tr><td class="metric">IAE ↓</td><td>'+iaeBefore.toFixed(1)+'</td><td>'+iaeAfter.toFixed(1)+'</td><td>'+fmtDelta(iaeAfter-iaeBefore,true)+'</td></tr>';
+  ['sp','pv','op','cvFb'].forEach(k=>{
+    const b=entry.beforeStats[k],a=entry.afterStats[k];if(!b||!a)return;
+    html+='<tr><td class="metric">'+k.toUpperCase()+' σ (std dev)</td><td>'+b.std.toFixed(3)+'</td><td>'+a.std.toFixed(3)+'</td><td>'+fmtDelta(a.std-b.std,true)+'</td></tr>';
+  });
+  html+='</table>';
+  html+='<h2>Box Plot Comparison</h2>';
+  html+='<div class="box-plots-grid">';
+  html+='<div class="box-plot-card"><h3>PV (Process Variable)</h3><canvas id="bp_pv"></canvas></div>';
+  html+='<div class="box-plot-card"><h3>SP (Setpoint)</h3><canvas id="bp_sp"></canvas></div>';
+  html+='<div class="box-plot-card"><h3>OP / CV cmd</h3><canvas id="bp_op"></canvas></div>';
+  html+='<div class="box-plot-card"><h3>CV feedback</h3><canvas id="bp_cvfb"></canvas></div>';
+  html+='</div>';
+  let verdict='',vclass='';const iaeChange=iaeAfter-iaeBefore,oshChange=oshAfter-oshBefore;
+  if(iaeChange<0&&oshChange<=0){verdict='✅ <b>Better tuning.</b> IAE ↓'+(-iaeChange/Math.max(0.1,iaeBefore)*100).toFixed(0)+'%, Overshoot '+(oshChange<=0?'stable or reduced':'up')+'. Keep it.';}
+  else if(iaeChange>0&&oshChange>0){verdict='⚠ <b>Worse tuning.</b> Both IAE and Overshoot increased. Revert.';vclass='bad';}
+  else{verdict='◯ <b>Mixed result.</b> IAE '+(iaeChange<0?'improved':'worsened')+', Overshoot '+(oshChange<0?'improved':'worsened')+'. Evaluate operational priorities.';vclass='warn';}
+  html+='<div class="verdict '+vclass+'">'+verdict+'</div>';
+  detail.innerHTML=html;
+  setTimeout(()=>{
+    drawBoxPlot($('bp_pv'),'PV',entry.beforeStats.pv,entry.afterStats.pv);
+    drawBoxPlot($('bp_sp'),'SP',entry.beforeStats.sp,entry.afterStats.sp);
+    drawBoxPlot($('bp_op'),'OP',entry.beforeStats.op,entry.afterStats.op);
+    drawBoxPlot($('bp_cvfb'),'CV fb',entry.beforeStats.cvFb,entry.afterStats.cvFb);
+  },50);
+}
+function closeReport(){$('reportModal').classList.remove('show');}
+function downloadReport(){const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PID Report</title><style>body{font-family:Consolas;background:#1a1a1a;color:#e6e6e6;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:6px 10px}th{background:#333;color:#4fc3f7}h1,h2{color:#4fc3f7}.verdict{padding:10px 14px;margin:12px 0;border-left:4px solid #66bb6a;background:#1a2a1a}.verdict.bad{background:#2a1a1a;border-left-color:#ef5350}.verdict.warn{background:#2a2a1a;border-left-color:#ffb300}.history-log{background:#0a0a0a;padding:8px;max-height:200px;overflow:auto;font-family:Consolas}.history-log .entry{padding:3px 5px;border-bottom:1px solid #222;display:grid;grid-template-columns:120px 1fr auto;gap:8px}.box-plots-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.box-plot-card{background:#0a0a0a;border:1px solid #333;padding:8px}.box-plot-card canvas{width:100%;height:160px}</style></head><body>'+$('rptContent').innerHTML+'</body></html>';const b=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=$('loopTag').value+'_report_'+formatTimestamp(t).replace(/[: ]/g,'-')+'.html';a.click();toast('Report downloaded');}
+
+// ============ v2.24.8: DATA CAPTURE WITH FILE SYSTEM API ============
+function updateDataCaptureIndicator(){
+  if(!dataCaptureActive)return;
+  const n=dataCaptureBuffer.simulation.length;
+  const durSec=t-(dataCaptureBuffer.startSimTime||0);
+  $('dataCapIndicator').innerHTML='⏺ REC · '+n+' samples · '+durSec.toFixed(0)+'s · '+dataCaptureBuffer.folderName;
+  const stEl=$('captureStatus');
+  if(stEl){stEl.classList.add('show');stEl.innerHTML='⏺ <b>Capturing</b> · '+n+' samples · '+dataCaptureBuffer.tunings.length+' tunings · '+dataCaptureBuffer.autoSeqResults.length+' auto-seqs<br>Folder: '+dataCaptureBuffer.folderName;}
+}
+async function toggleDataCapture(){
+  if(!dataCaptureActive)await startDataCapture();
+  else await stopDataCapture();
+}
+function pad2(n){return String(n).padStart(2,'0');}
+function buildFolderName(){
+  const d=new Date();
+  const tag=$('loopTag').value||'LOOP';
+  const dateStr=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+  const timeStr=pad2(d.getHours())+'-'+pad2(d.getMinutes())+'-'+pad2(d.getSeconds());
+  return tag+'_'+dateStr+'_'+timeStr;
+}
+async function startDataCapture(){
+  const folderName=buildFolderName();
+  dataCaptureBuffer={simulation:[],tunings:[],reports:[],autoSeqResults:[],startTs:formatTimestamp(t),startSimTime:t,folderName,dirHandle:null};
+  // Try File System Access API (Chrome/Edge)
+  if(window.showDirectoryPicker){
+    try{
+      const parentHandle=await window.showDirectoryPicker({mode:'readwrite'});
+      const dirHandle=await parentHandle.getDirectoryHandle(folderName,{create:true});
+      dataCaptureBuffer.dirHandle=dirHandle;
+      toast('✓ Capture started · Folder: '+folderName,'#c2185b');
+    }catch(e){
+      if(e.name==='AbortError'){toast('Capture cancelled','#7a1f1f');return;}
+      console.warn('FSAPI unavailable, using fallback:',e);
+      toast('Using download fallback (no folder API)','#ffb300');
+    }
+  }else{
+    toast('Started (Chrome/Edge for folder API)','#c2185b');
+  }
+  dataCaptureActive=true;
+  $('captureBtn').textContent='⏹ Detener Captura';
+  $('captureBtn').classList.add('active');
+  $('dataCapIndicator').classList.add('show');
+  updateDataCaptureIndicator();
+}
+async function writeFileToHandle(dirHandle,filename,content){
+  try{
+    const fileHandle=await dirHandle.getFileHandle(filename,{create:true});
+    const writable=await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+    return true;
+  }catch(e){console.error('Write failed:',e);return false;}
+}
+function downloadFile(filename,content,mime){
+  const b=new Blob([content],{type:mime||'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;a.click();
+}
+async function stopDataCapture(){
+  const folderName=dataCaptureBuffer.folderName;
+  const dirHandle=dataCaptureBuffer.dirHandle;
+  const simCSV=historyToCSV(dataCaptureBuffer.simulation);
+  const tuningsJSON=JSON.stringify({folderName,startTs:dataCaptureBuffer.startTs,endTs:formatTimestamp(t),tunings:dataCaptureBuffer.tunings,autoSeqResults:dataCaptureBuffer.autoSeqResults},null,2);
+  // Build final report HTML
+  openReport();await new Promise(r=>setTimeout(r,100));
+  const reportHTML='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PID Report '+folderName+'</title><style>body{font-family:Consolas;background:#1a1a1a;color:#e6e6e6;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:6px 10px}th{background:#333;color:#4fc3f7}h1,h2{color:#4fc3f7}.verdict{padding:10px 14px;margin:12px 0;border-left:4px solid #66bb6a;background:#1a2a1a}.history-log{background:#0a0a0a;padding:8px;max-height:400px;overflow:auto;font-family:Consolas}.history-log .entry{padding:3px 5px;border-bottom:1px solid #222;display:grid;grid-template-columns:120px 1fr auto;gap:8px}</style></head><body>'+$('rptContent').innerHTML+'</body></html>';
+  closeReport();
+  if(dirHandle){
+    const ok1=await writeFileToHandle(dirHandle,'simulation_data.csv',simCSV);
+    const ok2=await writeFileToHandle(dirHandle,'tunings.json',tuningsJSON);
+    const ok3=await writeFileToHandle(dirHandle,'report.html',reportHTML);
+    if(ok1&&ok2&&ok3)toast('✓ Saved to folder: '+folderName,'#1b5e20');
+    else toast('⚠ Some files failed to write','#ffb300');
+  }else{
+    // Fallback: download 3 separate files
+    downloadFile(folderName+'_simulation.csv',simCSV,'text/csv');
+    setTimeout(()=>downloadFile(folderName+'_tunings.json',tuningsJSON,'application/json'),200);
+    setTimeout(()=>downloadFile(folderName+'_report.html',reportHTML,'text/html'),400);
+    toast('✓ 3 files downloaded (fallback mode)','#1b5e20');
+  }
+  dataCaptureActive=false;
+  $('captureBtn').textContent='⏺ Comenzar Captura de Datos';
+  $('captureBtn').classList.remove('active');
+  $('dataCapIndicator').classList.remove('show');
+  $('captureStatus').classList.remove('show');
+  dataCaptureBuffer={simulation:[],tunings:[],reports:[],autoSeqResults:[],startTs:null,folderName:null,dirHandle:null};
+}
+
+// ============ MAIN LOOP + INIT ============
+let lastDraw=0,lastWfCheck=0;
+function loop(){
+  if(!running)return;
+  const speed=parseInt($('speed').value)||1;
+  for(let i=0;i<speed;i++)simStep();
+  updateFaceplate();
+  if(performance.now()-lastDraw>50){drawAll();updateSnap();updateStatsBars();checkTuningChange();lastDraw=performance.now();}
+  if(performance.now()-lastWfCheck>1500){updateWorkflowState();lastWfCheck=performance.now();}
+  requestAnimationFrame(loop);
+}
+function distAnimLoop(){drawDistPreview();requestAnimationFrame(distAnimLoop);}
+function initSPOPHandlers(){
+  $('spInput').addEventListener('change',()=>{const v=Math.max(0,Math.min(100,num('spInput',50)));spCommitted=v;stepStartTime=t;stepStartPV=pvOut;stepStartSP=v;pvMax=pvOut;});
+  $('opInput').addEventListener('change',()=>{opCommitted=Math.max(0,Math.min(100,num('opInput',50)));});
+  ['procKp','procTau','procTheta','procNoise'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',()=>{updatePrediction();updateWorkflowState();});});
+  ['KcProposed','TiProposed','TdProposed','alphaProposed'].forEach(id=>{
+    const el=$(id);if(el)el.addEventListener('input',()=>{
+      el.classList.remove('empty');
+      const has=['KcProposed','TiProposed','TdProposed','alphaProposed'].some(x=>$(x).value!=='');
+      if(has){
+        $('proposalActions').style.display='grid';$('noProposalHint').style.display='none';
+        if(!proposal){proposal={Kp:num('KcProposed',1),Kc:num('KcProposed',1),Ti:num('TiProposed',20),Td:num('TdProposed',0),alpha:num('alphaProposed',0.1),type:'MANUAL',source:'Manual entry'};$('proposedSource').innerHTML='📌 <b>Proposed:</b> Manual entry';$('proposedSource').classList.add('show');}
+        else{proposal.Kp=num('KcProposed');proposal.Kc=proposal.Kp;proposal.Ti=num('TiProposed');proposal.Td=num('TdProposed');proposal.alpha=num('alphaProposed');}
+        updatePrediction();
+      }
+    });
+  });
+}
+function initDropZone(){
+  const dz=$('dropZone');
+  ['dragenter','dragover'].forEach(evt=>dz.addEventListener(evt,e=>{e.preventDefault();}));
+  dz.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(!f)return;const dt=new DataTransfer();dt.items.add(f);$('importFile').files=dt.files;handleImportFile({target:{files:[f]}});});
+}
+window.addEventListener('resize',()=>{drawAll();updateStatsBars();});
+window.addEventListener('load',()=>{
+  initSPOPHandlers();initPlotTooltips();initDropZone();initParamTooltips();
+  applyLoopPreset();drawAll();updateFaceplate();updateSnap();
+  refreshSavedList();updateStatsBars();distAnimLoop();
+  lastTuning={Kc:num('Kc',2),Ti:num('Ti',120),Td:num('Td',0),alpha:num('alpha',0.1)};
+  updatePrediction();livePropose();updateWorkflowState();
+});
+setInterval(()=>{if(running)updatePrediction();},1500);
+</script>
+</body>
+</html>
